@@ -6,7 +6,14 @@ export async function POST(request: NextRequest) {
   
   try {
     const formData = await request.formData()
-    const file = formData.get('pdf') as File
+    const file = formData.get('pdf')
+    if (!(file instanceof File)) {
+      console.log('Invalid file type or no file provided')
+      return NextResponse.json(
+        { error: 'Invalid file type or no file provided' },
+        { status: 400 }
+      )
+    }
     
     console.log('File received:', file?.name, file?.type, file?.size)
     
