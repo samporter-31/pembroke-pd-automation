@@ -6,16 +6,24 @@ import { useRouter } from 'next/navigation'
 export default function Home() {
   const [agenda, setAgenda] = useState('')
   const [title, setTitle] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
+  const [formLoading, setFormLoading] = useState(false)
   const [uploadMethod, setUploadMethod] = useState<'text' | 'pdf'>('pdf')
   const [dragActive, setDragActive] = useState(false)
   const [fileName, setFileName] = useState('')
+  const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null)
   const router = useRouter()
 
+  const showNotification = (type: 'success' | 'error', message: string) => {
+    setNotification({ type, message })
+    setTimeout(() => setNotification(null), 5000) // Auto-hide after 5 seconds
+  }
+
   const handlePdfUpload = async (file: File) => {
-  setLoading(true)
-  setFileName(file.name)
-  
+    setPdfLoading(true)
+    setFileName(file.name)
+    setNotification(null) // Clear any existing notifications
+    
     try {
       const formData = new FormData()
       formData.append('pdf', file)
@@ -25,7 +33,6 @@ export default function Home() {
         body: formData
       })
 
-      // Better error handling
       if (!response.ok) {
         const errorText = await response.text()
         console.error('API Error Response:', errorText)
@@ -36,72 +43,115 @@ export default function Home() {
 
       if (data.success) {
         setAgenda(data.text)
-        alert(`PDF processed! Extracted ${data.text.length} characters.`)
+        showNotification('success', `PDF processed successfully! Extracted ${data.text.length} characters.`)
       } else {
-        alert('Error processing PDF: ' + data.error)
+        showNotification('error', 'Error processing PDF: ' + data.error)
       }
     } catch (error) {
       console.error('Upload error:', error)
-      alert('Error uploading PDF: ' + error)
+      showNotification('error', 'Error uploading PDF: ' + String(error))
     } finally {
-      setLoading(false)
+      setPdfLoading(false)
     }
   }
 
-    const handleDrag = useCallback((e: React.DragEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
-      if (e.type === "dragenter" || e.type === "dragover") {
-        setDragActive(true)
-      } else if (e.type === "dragleave") {
-        setDragActive(false)
-      }
-    }, [])
-
-    const handleDrop = useCallback((e: React.DragEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true)
+    } else if (e.type === "dragleave") {
       setDragActive(false)
-      
-      const files = e.dataTransfer.files
-      if (files && files[0]) {
-        const file = files[0]
-        if (file.type === 'application/pdf') {
-          handlePdfUpload(file)
-        } else {
-          alert('Please upload a PDF file only')
-        }
-      }
-    }, [])
+    }
+  }, [])
 
-    const handleSubmit = async (e: React.FormEvent) => {
-      e.preventDefault()
-      setLoading(true)
-      
-      try {
-        const response = await fetch('/api/generate-form', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ agenda, title })
-        })
-        
-        const data = await response.json()
-        
-        if (data.success) {
-          router.push(`/session/${data.agendaId}`)
-        } else {
-          alert('Error generating form: ' + data.error)
-        }
-      } catch (error) {
-        alert('Error: ' + error)
-      } finally {
-        setLoading(false)
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+    
+    const files = e.dataTransfer.files
+    if (files && files[0]) {
+      const file = files[0]
+      if (file.type === 'application/pdf') {
+        handlePdfUpload(file)
+      } else {
+        showNotification('error', 'Please upload a PDF file only')
       }
     }
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setFormLoading(true)
+    setNotification(null)
+    
+    try {
+      const response = await fetch('/api/generate-form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agenda, title })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        console.log('Navigating to:', `/session/${data.agendaId}`)
+        router.push(`/session/${data.agendaId}`)
+      } else {
+        setFormLoading(false)
+        showNotification('error', 'Error generating form: ' + data.error)
+      }
+    } catch (error) {
+      setFormLoading(false)
+      console.error('Submit error:', error)
+      showNotification('error', 'Error: ' + String(error))
+    }
+  }
 
   return (
     <main className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-2xl mx-auto px-4">
+        {/* Notification Banner */}
+        {notification && (
+          <div className={`mb-6 p-4 rounded-lg border transition-all duration-300 ${
+            notification.type === 'success' 
+              ? 'bg-green-50 border-green-200 text-green-800' 
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}>
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                {notification.type === 'success' ? (
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium">{notification.message}</p>
+              </div>
+              <div className="ml-auto pl-3">
+                <button
+                  onClick={() => setNotification(null)}
+                  className={`inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    notification.type === 'success'
+                      ? 'text-green-500 hover:bg-green-100 focus:ring-green-600'
+                      : 'text-red-500 hover:bg-red-100 focus:ring-red-600'
+                  }`}
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white rounded-xl shadow-sm p-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             AI Professional Learning Reports
@@ -175,7 +225,7 @@ export default function Home() {
                   onDragOver={handleDrag}
                   onDrop={handleDrop}
                 >
-                  {loading ? (
+                  {pdfLoading ? (
                     <div className="text-blue-600">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
                       Processing PDF...
@@ -252,10 +302,10 @@ export default function Home() {
             
             <button
               type="submit"
-              disabled={loading || !agenda.trim() || !title.trim()}
+              disabled={formLoading || pdfLoading || !agenda.trim() || !title.trim()}
               className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? 'Processing...' : 'Generate Note-Taking Form →'}
+              {formLoading ? 'Creating personalised questions...' : 'Generate Note-Taking Form →'}
             </button>
           </form>
         </div>

@@ -30,6 +30,8 @@ export default function SessionPage() {
   const [formData, setFormData] = useState<FormData>({})
   const [participantName, setParticipantName] = useState('')
   const [genericNotes, setGenericNotes] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   useEffect(() => {
     fetchSessionData()
@@ -115,23 +117,27 @@ export default function SessionPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
     if (!participantName.trim()) {
-      alert('Please enter your name')
+      setError('Please enter your name')
       return
     }
 
-    // Check if user has entered at least some notes (generic notes OR any form field)
+    // Check if user has entered at least some notes
     const hasAnyNotes = genericNotes.trim() || Object.values(formData).some(value => value.trim())
     
     if (!hasAnyNotes) {
-      alert('Please add some notes before submitting')
+      setError('Please add some notes before submitting')
       return
     }
 
     setSubmitting(true)
+    setError(null)
+    setSuccess(null)
+    
     try {
-      // For now, just show an alert - we'll build the actual submission later
-      alert(`Thanks ${participantName}! Your notes have been saved. Report generation coming soon!`)
+      // For now, just show success message - we'll build the actual submission later
+      setSuccess(`Thanks ${participantName}! Your notes have been saved. Report generation coming soon!`)
       
       // Later this will include both generic notes and structured responses:
       // const allNotes = {
@@ -141,7 +147,7 @@ export default function SessionPage() {
       // }
       
     } catch (error) {
-      alert('Error: ' + error)
+      setError('Error: ' + String(error))
     } finally {
       setSubmitting(false)
     }
@@ -161,6 +167,46 @@ export default function SessionPage() {
   return (
     <main className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-4xl mx-auto px-4">
+        {/* Error Notification */}
+        {error && (
+          <div className="mb-6 p-4 rounded-lg border bg-red-50 border-red-200 text-red-800">
+            <div className="flex items-center">
+              <svg className="h-5 w-5 mr-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <p className="text-sm font-medium">{error}</p>
+              <button
+                onClick={() => setError(null)}
+                className="ml-auto text-red-500 hover:bg-red-100 rounded p-1"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Success Notification */}
+        {success && (
+          <div className="mb-6 p-4 rounded-lg border bg-green-50 border-green-200 text-green-800">
+            <div className="flex items-center">
+              <svg className="h-5 w-5 mr-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <p className="text-sm font-medium">{success}</p>
+              <button
+                onClick={() => setSuccess(null)}
+                className="ml-auto text-green-500 hover:bg-green-100 rounded p-1"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white rounded-xl shadow-sm p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
