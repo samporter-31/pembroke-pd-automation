@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "microservice": "ts-node src/services/pdf-microservice.ts",
+    "microservice": "node src/services/pdf-microservice.js",
     "dev:all": "concurrently \"npm run dev\" \"npm run microservice\""
   },
   "dependencies": {
