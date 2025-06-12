@@ -120,10 +120,14 @@ Return this exact structure:
 
     console.log('Final form structure:', formStructure)
 
-    // Save agenda to database
+    // Save agenda AND form structure to database
     const { data: agendaData, error: agendaError } = await supabase
       .from('agendas')
-      .insert([{ title, content: agenda }])
+      .insert([{ 
+        title, 
+        content: agenda,
+        form_structure: formStructure  // Add this line
+      }])
       .select()
       .single()
 
