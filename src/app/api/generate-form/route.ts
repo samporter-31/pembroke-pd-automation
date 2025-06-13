@@ -15,46 +15,57 @@ export async function POST(request: NextRequest) {
 
     console.log('Generating form for:', title)
 
-    // Generate form structure using OpenAI
+    // Generate form structure using OpenAI with enhanced prompt
     const response = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
       messages: [{
         role: "user",
-        content: `Create a note-taking form for this PD agenda. Return ONLY valid JSON without markdown formatting:
+        content: `You are an expert in professional development for educators. Create a HIGHLY SPECIFIC note-taking form based on this exact PD agenda content.
 
-AGENDA: ${agenda}
+PD SESSION TITLE: ${title}
+DETAILED AGENDA: ${agenda}
 
-Return this exact structure:
+CRITICAL INSTRUCTIONS:
+1. Analyze the SPECIFIC topics, methods, and content mentioned in the agenda
+2. Create questions that are DIRECTLY RELATED to the agenda content - NOT generic questions
+3. Use terminology and concepts from the actual agenda
+4. Reference specific teaching strategies, tools, or frameworks mentioned
+5. Make questions actionable for immediate classroom implementation
+
+EXAMPLE - If agenda mentions "differentiated instruction in mathematics":
+- DON'T ask: "What were the main learning objectives?"
+- DO ask: "How will you adapt mathematical content delivery for students with different learning styles and readiness levels?"
+
+Create 3-4 targeted sections with 2-3 specific questions each.
+
+Return ONLY valid JSON in this structure:
 {
   "sections": [
     {
-      "title": "Key Learning Points",
-      "description": "Main concepts and insights",
+      "title": "Specific Topic from Agenda",
+      "description": "What participants will capture about this specific topic",
       "fields": [
         {
-          "id": "learning_1",
-          "label": "What were the main learning objectives?",
+          "id": "unique_specific_id",
+          "label": "Highly specific question based on agenda content",
           "type": "textarea",
-          "placeholder": "Describe the key learning objectives..."
-        }
-      ]
-    },
-    {
-      "title": "Implementation Ideas", 
-      "description": "How you'll apply this learning",
-      "fields": [
-        {
-          "id": "implementation_1",
-          "label": "How will you implement these ideas?",
-          "type": "textarea", 
-          "placeholder": "Describe your implementation plans..."
+          "placeholder": "Specific guidance related to the actual PD content"
         }
       ]
     }
   ]
-}`
+}
+
+Focus on creating questions that help teachers capture:
+- Specific strategies they can implement immediately
+- How to adapt techniques for their particular student populations
+- Assessment methods related to the agenda topics
+- Reflection on how these specific approaches connect to their current practice
+- AITSL standards alignment opportunities for the specific content covered
+
+Make every question highly relevant to the actual agenda content provided.`
       }],
-      max_tokens: 800
+      max_tokens: 1200
     })
 
     let rawResponse = response.choices[0].message.content || '{}'
@@ -75,47 +86,99 @@ Return this exact structure:
       console.error('JSON parse error:', parseError)
       console.error('Cleaned response was:', rawResponse)
       
-      // Fallback form structure if parsing fails
-      formStructure = {
-        sections: [
+      // Enhanced fallback form structure based on agenda content
+      const agendaLower = agenda.toLowerCase()
+      let fallbackSections = []
+
+      // Try to create somewhat relevant sections based on agenda keywords
+      if (agendaLower.includes('differentiat') || agendaLower.includes('adapt') || agendaLower.includes('diverse')) {
+        fallbackSections.push({
+          title: "Differentiation Strategies",
+          description: "Specific approaches for adapting instruction",
+          fields: [
+            {
+              id: "differentiation_techniques",
+              label: "What specific differentiation techniques were discussed?",
+              type: "textarea",
+              placeholder: "List the concrete strategies for adapting content, process, or product..."
+            },
+            {
+              id: "student_grouping",
+              label: "How will you group students to support diverse learning needs?",
+              type: "textarea",
+              placeholder: "Describe grouping strategies and rationale..."
+            }
+          ]
+        })
+      }
+
+      if (agendaLower.includes('assess') || agendaLower.includes('feedback') || agendaLower.includes('evaluat')) {
+        fallbackSections.push({
+          title: "Assessment and Feedback",
+          description: "Evaluation and feedback strategies discussed",
+          fields: [
+            {
+              id: "assessment_methods",
+              label: "What assessment strategies were explored?",
+              type: "textarea",
+              placeholder: "Detail specific assessment techniques and tools..."
+            }
+          ]
+        })
+      }
+
+      if (agendaLower.includes('technolog') || agendaLower.includes('digital') || agendaLower.includes('tool')) {
+        fallbackSections.push({
+          title: "Technology Integration",
+          description: "Digital tools and technology applications",
+          fields: [
+            {
+              id: "tech_tools",
+              label: "Which technology tools or platforms were demonstrated?",
+              type: "textarea",
+              placeholder: "List specific tools and their applications..."
+            }
+          ]
+        })
+      }
+
+      // Default sections if no keywords match
+      if (fallbackSections.length === 0) {
+        fallbackSections = [
           {
-            title: "Key Learning Points",
-            description: "Main concepts and insights from the session",
+            title: "Key Strategies and Methods",
+            description: "Specific teaching strategies and methods covered",
             fields: [
               {
-                id: "learning_objectives",
-                label: "What were the main learning objectives?",
+                id: "teaching_strategies",
+                label: "What specific teaching strategies were demonstrated or discussed?",
                 type: "textarea",
-                placeholder: "Describe the key learning objectives..."
+                placeholder: "List concrete strategies and methods..."
               },
               {
-                id: "key_concepts",
-                label: "What key concepts were covered?",
+                id: "implementation_plan",
+                label: "How will you implement these strategies in your classroom?",
                 type: "textarea",
-                placeholder: "List the main concepts discussed..."
+                placeholder: "Create a specific implementation plan..."
               }
             ]
           },
           {
-            title: "Implementation Ideas",
-            description: "How you'll apply this learning",
+            title: "Student Impact and Outcomes",
+            description: "Expected impact on student learning",
             fields: [
               {
-                id: "implementation_plans",
-                label: "How will you implement these ideas?",
+                id: "student_benefits",
+                label: "How will these approaches benefit your specific students?",
                 type: "textarea",
-                placeholder: "Describe your implementation plans..."
-              },
-              {
-                id: "action_items",
-                label: "What are your immediate action items?",
-                type: "textarea",
-                placeholder: "List specific actions you'll take..."
+                placeholder: "Consider your student demographics and needs..."
               }
             ]
           }
         ]
       }
+
+      formStructure = { sections: fallbackSections }
     }
 
     console.log('Final form structure:', formStructure)
@@ -126,7 +189,7 @@ Return this exact structure:
       .insert([{ 
         title, 
         content: agenda,
-        form_structure: formStructure  // Add this line
+        form_structure: formStructure
       }])
       .select()
       .single()
@@ -155,3 +218,4 @@ Return this exact structure:
     )
   }
 }
+

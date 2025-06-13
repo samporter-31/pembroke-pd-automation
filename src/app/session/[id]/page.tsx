@@ -39,74 +39,99 @@ export default function SessionPage() {
 
   const fetchSessionData = async () => {
     try {
-      // For now, we'll create a basic form structure
-      // Later this will fetch the actual AI-generated form from the database
-      const fallbackForm = {
-        sections: [
-          {
-            title: "Key Learning Points",
-            description: "Main concepts and insights from the session",
-            fields: [
-              {
-                id: "learning_objectives",
-                label: "What were the main learning objectives?",
-                type: "textarea",
-                placeholder: "Describe the key learning objectives..."
-              },
-              {
-                id: "key_concepts",
-                label: "What key concepts were covered?",
-                type: "textarea",
-                placeholder: "List the main concepts discussed..."
-              }
-            ]
-          },
-          {
-            title: "Implementation Ideas",
-            description: "How you'll apply this learning",
-            fields: [
-              {
-                id: "implementation_plans",
-                label: "How will you implement these ideas?",
-                type: "textarea",
-                placeholder: "Describe your implementation plans..."
-              },
-              {
-                id: "action_items",
-                label: "What are your immediate action items?",
-                type: "textarea",
-                placeholder: "List specific actions you'll take..."
-              }
-            ]
-          },
-          {
-            title: "Reflection & Questions",
-            description: "Your thoughts and questions",
-            fields: [
-              {
-                id: "reflection",
-                label: "What did you find most valuable about this session?",
-                type: "textarea",
-                placeholder: "Reflect on the most valuable aspects..."
-              },
-              {
-                id: "questions",
-                label: "What questions do you still have?",
-                type: "textarea",
-                placeholder: "List any remaining questions..."
-              }
-            ]
-          }
-        ]
-      }
+      console.log('Fetching session data for ID:', params.id)
       
-      setFormStructure(fallbackForm)
+      const response = await fetch('/api/get-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agendaId: params.id })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Session data received:', data.success)
+        console.log('Form structure available:', !!data.formStructure)
+        
+        setAgenda(data.agenda)
+        
+        if (data.formStructure && data.formStructure.sections) {
+          setFormStructure(data.formStructure)
+          console.log('Using AI-generated form with', data.formStructure.sections.length, 'sections')
+        } else {
+          console.log('No form structure found, using fallback')
+          setFormStructure(getFallbackForm())
+        }
+      } else {
+        console.log('Failed to fetch session data, using fallback form')
+        setFormStructure(getFallbackForm())
+      }
     } catch (error) {
       console.error('Error fetching session:', error)
+      setFormStructure(getFallbackForm())
     } finally {
       setLoading(false)
     }
   }
+
+  // Helper function for fallback form
+  const getFallbackForm = () => ({
+    sections: [
+      {
+        title: "Key Learning Points",
+        description: "Main concepts and insights from the session",
+        fields: [
+          {
+            id: "learning_objectives",
+            label: "What were the main learning objectives?",
+            type: "textarea",
+            placeholder: "Describe the key learning objectives..."
+          },
+          {
+            id: "key_concepts",
+            label: "What key concepts were covered?",
+            type: "textarea",
+            placeholder: "List the main concepts discussed..."
+          }
+        ]
+      },
+      {
+        title: "Implementation Ideas",
+        description: "How you'll apply this learning",
+        fields: [
+          {
+            id: "implementation_plans",
+            label: "How will you implement these ideas?",
+            type: "textarea",
+            placeholder: "Describe your implementation plans..."
+          },
+          {
+            id: "action_items",
+            label: "What are your immediate action items?",
+            type: "textarea",
+            placeholder: "List specific actions you'll take..."
+          }
+        ]
+      },
+      {
+        title: "Reflection & Questions",
+        description: "Your thoughts and questions",
+        fields: [
+          {
+            id: "reflection",
+            label: "What did you find most valuable about this session?",
+            type: "textarea",
+            placeholder: "Reflect on the most valuable aspects..."
+          },
+          {
+            id: "questions",
+            label: "What questions do you still have?",
+            type: "textarea",
+            placeholder: "List any remaining questions..."
+          }
+        ]
+      }
+    ]
+  })
 
   const handleInputChange = (fieldId: string, value: string) => {
     setFormData(prev => ({
