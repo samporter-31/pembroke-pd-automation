@@ -2,349 +2,394 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { Loader2, AlertCircle, CheckCircle, BookOpen, Brain, Target, School, Lightbulb } from 'lucide-react'
 
-interface FormField {
+interface FormQuestion {
   id: string
-  label: string
+  question: string
   type: string
-  placeholder: string
+  required: boolean
 }
 
-interface FormSection {
-  title: string
+interface SessionData {
+  id: string
+  participant_name: string
+  agendas: {
+    title: string
+    content: string
+  }
+  form_structure: {
+    questions: FormQuestion[]
+  }
+}
+
+interface FrameworkOption {
+  id: string
+  name: string
   description: string
-  fields: FormField[]
-}
-
-interface FormData {
-  [key: string]: string
+  icon: React.ReactNode
+  color: string
 }
 
 export default function SessionPage() {
   const params = useParams()
   const router = useRouter()
+  
+  // State management
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [agenda, setAgenda] = useState<any>(null)
-  const [formStructure, setFormStructure] = useState<{ sections: FormSection[] } | null>(null)
-  const [formData, setFormData] = useState<FormData>({})
-  const [participantName, setParticipantName] = useState('')
-  const [genericNotes, setGenericNotes] = useState('')
+  const [sessionData, setSessionData] = useState<SessionData | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const [notification, setNotification] = useState<string | null>(null)
+  
+  // Form responses
+  const [generalNotes, setGeneralNotes] = useState('')
+  const [responses, setResponses] = useState<Record<string, string>>({})
+  
+  // Framework selection state
+  const [selectedFrameworks, setSelectedFrameworks] = useState<Record<string, boolean>>({
+    aitsl: true,
+    qtm: true,
+    visible_thinking: true,
+    modern_classrooms: false,
+    pembroke: true
+  })
+
+  // Framework options configuration
+  const frameworkOptions: FrameworkOption[] = [
+    {
+      id: 'aitsl',
+      name: 'AITSL Standards',
+      description: 'Australian Professional Standards for Teachers',
+      icon: <Target className="w-5 h-5" />,
+      color: 'bg-blue-50 border-blue-200 text-blue-700'
+    },
+    {
+      id: 'qtm',
+      name: 'Quality Teaching Model',
+      description: 'Intellectual Quality, Learning Environment, Significance',
+      icon: <BookOpen className="w-5 h-5" />,
+      color: 'bg-green-50 border-green-200 text-green-700'
+    },
+    {
+      id: 'visible_thinking',
+      name: 'Visible Thinking Routines',
+      description: 'Harvard Project Zero thinking strategies',
+      icon: <Brain className="w-5 h-5" />,
+      color: 'bg-purple-50 border-purple-200 text-purple-700'
+    },
+    {
+      id: 'modern_classrooms',
+      name: 'Modern Classrooms Project',
+      description: 'Self-paced, mastery-based learning approaches',
+      icon: <Lightbulb className="w-5 h-5" />,
+      color: 'bg-orange-50 border-orange-200 text-orange-700'
+    },
+    {
+      id: 'pembroke',
+      name: 'Pembroke Effective Pedagogies',
+      description: 'School-specific teaching methodologies',
+      icon: <School className="w-5 h-5" />,
+      color: 'bg-indigo-50 border-indigo-200 text-indigo-700'
+    }
+  ]
 
   useEffect(() => {
-    fetchSessionData()
+    if (params.id) {
+      fetchSession()
+    }
   }, [params.id])
 
-  const fetchSessionData = async () => {
+  const fetchSession = async () => {
     try {
-      console.log('Fetching session data for ID:', params.id)
+      setLoading(true)
+      setError(null)
       
-      const response = await fetch('/api/get-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agendaId: params.id })
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Session data received:', data.success)
-        console.log('Form structure available:', !!data.formStructure)
-        
-        setAgenda(data.agenda)
-        
-        if (data.formStructure && data.formStructure.sections) {
-          setFormStructure(data.formStructure)
-          console.log('Using AI-generated form with', data.formStructure.sections.length, 'sections')
-        } else {
-          console.log('No form structure found, using fallback')
-          setFormStructure(getFallbackForm())
+      const response = await fetch(`/api/get-session/${params.id}`)
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('Session not found')
         }
-      } else {
-        console.log('Failed to fetch session data, using fallback form')
-        setFormStructure(getFallbackForm())
+        throw new Error('Failed to load session')
       }
+      
+      const data = await response.json()
+      setSessionData(data.session)
+      
     } catch (error) {
       console.error('Error fetching session:', error)
-      setFormStructure(getFallbackForm())
+      setError(error instanceof Error ? error.message : 'Failed to load session')
     } finally {
       setLoading(false)
     }
   }
 
-  // Helper function for fallback form
-  const getFallbackForm = () => ({
-    sections: [
-      {
-        title: "Key Learning Points",
-        description: "Main concepts and insights from the session",
-        fields: [
-          {
-            id: "learning_objectives",
-            label: "What were the main learning objectives?",
-            type: "textarea",
-            placeholder: "Describe the key learning objectives..."
-          },
-          {
-            id: "key_concepts",
-            label: "What key concepts were covered?",
-            type: "textarea",
-            placeholder: "List the main concepts discussed..."
-          }
-        ]
-      },
-      {
-        title: "Implementation Ideas",
-        description: "How you'll apply this learning",
-        fields: [
-          {
-            id: "implementation_plans",
-            label: "How will you implement these ideas?",
-            type: "textarea",
-            placeholder: "Describe your implementation plans..."
-          },
-          {
-            id: "action_items",
-            label: "What are your immediate action items?",
-            type: "textarea",
-            placeholder: "List specific actions you'll take..."
-          }
-        ]
-      },
-      {
-        title: "Reflection & Questions",
-        description: "Your thoughts and questions",
-        fields: [
-          {
-            id: "reflection",
-            label: "What did you find most valuable about this session?",
-            type: "textarea",
-            placeholder: "Reflect on the most valuable aspects..."
-          },
-          {
-            id: "questions",
-            label: "What questions do you still have?",
-            type: "textarea",
-            placeholder: "List any remaining questions..."
-          }
-        ]
-      }
-    ]
-  })
-
-  const handleInputChange = (fieldId: string, value: string) => {
-    setFormData(prev => ({
+  const handleFrameworkChange = (frameworkId: string, checked: boolean) => {
+    setSelectedFrameworks(prev => ({
       ...prev,
-      [fieldId]: value
+      [frameworkId]: checked
+    }))
+  }
+
+  const handleResponseChange = (questionId: string, value: string) => {
+    setResponses(prev => ({
+      ...prev,
+      [questionId]: value
     }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault()
-  
-  if (!participantName.trim()) {
-    setError('Please enter your name')
-    return
-  }
-
-  // Check if user has entered at least some notes
-  const hasAnyNotes = genericNotes.trim() || Object.values(formData).some(value => value.trim())
-  
-  if (!hasAnyNotes) {
-    setError('Please add some notes before submitting')
-    return
-  }
-
-  setSubmitting(true)
-  setError(null)
-  setSuccess(null)
-  
-  try {
-    const response = await fetch('/api/submit-notes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        agendaId: params.id,
-        participantName,
-        genericNotes,
-        structuredResponses: formData
-      })
-    })
-
-    const data = await response.json()
-
-    if (data.success) {
-      setSuccess(`Analysis complete! Your professional learning report has been generated.`)
-      
-      // Navigate to report page after a short delay
-      setTimeout(() => {
-        router.push(`/report/${data.sessionId}`)
-      }, 2000)
-    } else {
-      setError('Error generating report: ' + data.error)
-    }
+    e.preventDefault()
     
+    try {
+      setSubmitting(true)
+      setError(null)
+      
+      // Validate that at least one framework is selected
+      const hasSelectedFramework = Object.values(selectedFrameworks).some(selected => selected)
+      if (!hasSelectedFramework) {
+        throw new Error('Please select at least one framework for analysis')
+      }
+      
+      const submitData = {
+        session_id: params.id,
+        general_notes: generalNotes,
+        responses: responses,
+        selected_frameworks: selectedFrameworks
+      }
+      
+      const response = await fetch('/api/submit-notes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(submitData)
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save notes')
+      }
+      
+      const result = await response.json()
+      
+      // Show success notification
+      setNotification('Notes saved successfully! Generating your report...')
+      
+      // Redirect to report page after short delay
+      setTimeout(() => {
+        router.push(`/report/${params.id}`)
+      }, 2000)
+      
     } catch (error) {
-      setError('Error: ' + String(error))
+      console.error('Submission error:', error)
+      setError(error instanceof Error ? error.message : 'Failed to save notes')
     } finally {
       setSubmitting(false)
     }
   }
 
+  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading session...</p>
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading your session...</p>
         </div>
       </div>
     )
   }
 
+  // Error state
+  if (error && !sessionData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Session Not Found</h1>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => router.push('/')}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!sessionData) return null
+
   return (
-    <main className="min-h-screen bg-gray-50 py-12">
-    <div className="max-w-4xl mx-auto px-4">
-      <div className="bg-white rounded-xl shadow-sm p-8">
-        <div className="mb-8">
+    <main className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        {/* Header */}
+        <div className="bg-white rounded-xl shadow-sm p-8 mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Professional Learning Notes
+            Professional Learning Session
           </h1>
-          <p className="text-gray-600">
-            Take notes during your professional development session
-          </p>
+          <div className="text-gray-600 mb-4">
+            <p><span className="font-medium">Session:</span> {sessionData.agendas.title}</p>
+            <p><span className="font-medium">Participant:</span> {sessionData.participant_name}</p>
+          </div>
+          
+          {/* Session Instructions */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-blue-900 mb-2">📝 How to Use This Session</h2>
+            <div className="text-blue-800 text-sm space-y-2">
+              <p>• Take notes during your professional learning session</p>
+              <p>• Answer the AI-generated questions based on the session content</p>
+              <p>• Select which frameworks you'd like your learning mapped to</p>
+              <p>• Submit to generate your personalized professional development report</p>
+            </div>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Name Input Error */}
-          {error && error.includes('name') && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
-              {error}
-            </div>
-          )}
-
-          {/* Participant Name */}
-          <div className="border-b border-gray-200 pb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Your Name *
-            </label>
-            <input
-              type="text"
-              value={participantName}
-              onChange={(e) => setParticipantName(e.target.value)}
-              placeholder="Enter your full name"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              required
-            />
-          </div>
-
-          {/* Generic Notes Section */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-blue-900 mb-2">
-              📝 General Notes
+          {/* Framework Selection */}
+          <div className="bg-white rounded-xl shadow-sm p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              🎯 Select Analysis Frameworks
             </h2>
-            <p className="text-blue-700 mb-4">
-              Capture any thoughts, ideas, or observations that don't fit the specific questions below
+            <p className="text-gray-600 mb-6">
+              Choose which educational frameworks you'd like your learning mapped to in the final report.
             </p>
-            <textarea
-              value={genericNotes}
-              onChange={(e) => setGenericNotes(e.target.value)}
-              placeholder="Write down anything that stands out to you - quotes, ideas, connections, questions, or general observations..."
-              rows={6}
-              className="w-full rounded-lg border border-blue-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-            />
-          </div>
-
-          {/* Structured Form Sections */}
-          <div className="space-y-6">
-            <div className="border-t border-gray-200 pt-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-2">
-                Guided Reflection Questions
-              </h2>
-              <p className="text-sm text-gray-600 mb-6">
-                These questions are optional but will help create a more detailed learning report
-              </p>
-            </div>
-
-            {formStructure?.sections.map((section, sectionIndex) => (
-              <div key={sectionIndex} className="border border-gray-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {section.title}
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  {section.description}
-                </p>
-
-                <div className="space-y-6">
-                  {section.fields.map((field) => (
-                    <div key={field.id}>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {field.label} <span className="text-gray-400 text-xs">(optional)</span>
-                      </label>
-                      {field.type === 'textarea' ? (
-                        <textarea
-                          value={formData[field.id] || ''}
-                          onChange={(e) => handleInputChange(field.id, e.target.value)}
-                          placeholder={field.placeholder}
-                          rows={3}
-                          className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      ) : (
-                        <input
-                          type={field.type}
-                          value={formData[field.id] || ''}
-                          onChange={(e) => handleInputChange(field.id, e.target.value)}
-                          placeholder={field.placeholder}
-                          className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
+            
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {frameworkOptions.map((framework) => (
+                <label
+                  key={framework.id}
+                  className={`relative flex items-start p-4 border-2 rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                    selectedFrameworks[framework.id]
+                      ? framework.color
+                      : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedFrameworks[framework.id]}
+                    onChange={(e) => handleFrameworkChange(framework.id, e.target.checked)}
+                    className="sr-only"
+                  />
+                  <div className="flex-shrink-0 mr-3 mt-1">
+                    {framework.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center">
+                      <h3 className="font-semibold text-sm">{framework.name}</h3>
+                      {selectedFrameworks[framework.id] && (
+                        <CheckCircle className="w-4 h-4 ml-2 flex-shrink-0" />
                       )}
                     </div>
-                  ))}
-                </div>
+                    <p className="text-xs mt-1 opacity-80">{framework.description}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+            
+            {!Object.values(selectedFrameworks).some(selected => selected) && (
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-yellow-800 text-sm">
+                  ⚠️ Please select at least one framework for analysis
+                </p>
               </div>
-            ))}
+            )}
           </div>
 
-          {/* Notes validation error */}
-          {error && error.includes('notes') && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
-              {error}
-            </div>
-          )}
+          {/* General Notes Section */}
+          <div className="bg-white rounded-xl shadow-sm p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              📋 General Notes
+            </h2>
+            <p className="text-gray-600 mb-4">
+              Record your key takeaways, insights, and reflections from the session.
+            </p>
+            <textarea
+              value={generalNotes}
+              onChange={(e) => setGeneralNotes(e.target.value)}
+              placeholder="What were the main concepts covered? What resonated with you? How might you apply these ideas in your teaching practice?"
+              className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
+            />
+          </div>
 
-          {/* Success notification at bottom */}
-          {success && (
-            <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-green-800">
-              <div className="flex items-center">
-                <svg className="h-5 w-5 mr-3" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                <p className="text-sm font-medium">{success}</p>
+          {/* AI-Generated Questions */}
+          {sessionData.form_structure?.questions?.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm p-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                🤖 Session-Specific Questions
+              </h2>
+              <p className="text-gray-600 mb-6">
+                These questions were generated based on your session agenda to help capture specific learning outcomes.
+              </p>
+              
+              <div className="space-y-6">
+                {sessionData.form_structure.questions.map((question, index) => (
+                  <div key={question.id} className="border-l-4 border-blue-500 pl-6">
+                    <label className="block font-medium text-gray-900 mb-2">
+                      {index + 1}. {question.question}
+                      {question.required && <span className="text-red-500 ml-1">*</span>}
+                    </label>
+                    <textarea
+                      value={responses[question.id] || ''}
+                      onChange={(e) => handleResponseChange(question.id, e.target.value)}
+                      placeholder="Share your thoughts, examples, or reflections..."
+                      className="w-full h-24 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
+                      required={question.required}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          <div className="flex justify-between items-center pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={() => router.push('/')}
-              className="px-6 py-2 text-gray-600 hover:text-gray-800"
-            >
-              ← Back to Home
-            </button>
-            
-            <button
-              type="submit"
-              disabled={submitting || !participantName.trim()}
-              className="bg-blue-600 text-white py-3 px-8 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {submitting ? 'Analyzing notes with AI...' : 'Generate Learning Report →'}
-            </button>
+          {/* Error Display */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
+                <p className="text-red-800">{error}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Success Notification */}
+          {notification && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                <p className="text-green-800">{notification}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <div className="bg-white rounded-xl shadow-sm p-8">
+            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+              <div>
+                <h3 className="font-semibold text-gray-900">Ready to Generate Your Report?</h3>
+                <p className="text-gray-600 text-sm">Your responses will be analyzed against the selected frameworks.</p>
+              </div>
+              <button
+                type="submit"
+                disabled={submitting || !Object.values(selectedFrameworks).some(selected => selected)}
+                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generating Report...
+                  </>
+                ) : (
+                  'Generate Professional Learning Report'
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>
-    </div>
     </main>
   )
 }

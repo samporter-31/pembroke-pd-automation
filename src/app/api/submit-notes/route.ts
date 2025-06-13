@@ -1,240 +1,356 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { openai } from '@/lib/openai'
 import { supabase } from '@/lib/supabase'
+import OpenAI from 'openai'
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+})
+
+interface FrameworkAnalysis {
+  aitsl_analysis?: {
+    standards_addressed: Array<{
+      standard: string
+      evidence: string
+      growth_demonstrated: string
+      implementation_opportunities: string
+    }>
+    overall_compliance: string
+  }
+  quality_teaching?: {
+    intellectual_quality: string
+    learning_environment: string
+    significance: string
+  }
+  visible_thinking?: {
+    routines_identified: string[]
+    implementation_strategies: string
+  }
+  pembroke_pedagogies?: {
+    alignment: string
+    integration_opportunities: string
+  }
+  modern_classrooms?: {
+    alignment: string
+    integration_opportunities: string
+  }
+  key_insights: string[]
+  recommendations: string[]
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const { agendaId, participantName, genericNotes, structuredResponses } = await request.json()
+    const body = await request.json()
+    const { session_id, general_notes, responses, selected_frameworks } = body
 
-    if (!agendaId || !participantName) {
+    // Input validation
+    if (!session_id) {
       return NextResponse.json(
-        { error: 'Agenda ID and participant name are required' },
+        { error: 'Session ID is required' },
         { status: 400 }
       )
     }
 
-    console.log('Processing notes for:', participantName)
+    // Validate selected frameworks
+    if (!selected_frameworks || typeof selected_frameworks !== 'object') {
+      return NextResponse.json(
+        { error: 'Framework selection is required' },
+        { status: 400 }
+      )
+    }
 
-    // Get the original agenda from database
-    const { data: agendaData, error: agendaError } = await supabase
-      .from('agendas')
-      .select('*')
-      .eq('id', agendaId)
+    const hasSelectedFramework = Object.values(selected_frameworks).some(Boolean)
+    if (!hasSelectedFramework) {
+      return NextResponse.json(
+        { error: 'At least one framework must be selected' },
+        { status: 400 }
+      )
+    }
+
+    console.log('Processing notes submission for session:', session_id)
+    console.log('Selected frameworks:', selected_frameworks)
+
+    // Get session and agenda data
+    const { data: sessionData, error: sessionError } = await supabase
+      .from('sessions')
+      .select(`
+        *,
+        agendas (*)
+      `)
+      .eq('id', session_id)
       .single()
 
-    if (agendaError || !agendaData) {
-      console.error('Agenda not found:', agendaError)
+    if (sessionError || !sessionData) {
+      console.error('Session fetch error:', sessionError)
       return NextResponse.json(
-        { error: 'Agenda not found' },
+        { error: 'Session not found' },
         { status: 404 }
       )
     }
 
-    // Combine all notes for analysis
-    const allNotes = {
-      genericNotes: genericNotes || '',
-      structuredResponses: structuredResponses || {}
-    }
-
-    // Save session to database first
-    const { data: sessionData, error: sessionError } = await supabase
+    // Save notes to session
+    const { error: updateError } = await supabase
       .from('sessions')
-      .insert([{
-        agenda_id: agendaId,
-        participant_name: participantName,
-        notes: allNotes
-      }])
-      .select()
-      .single()
+      .update({
+        notes: {
+          general_notes,
+          responses,
+          selected_frameworks
+        },
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', session_id)
 
-    if (sessionError) {
-      console.error('Session save error:', sessionError)
-      throw sessionError
+    if (updateError) {
+      console.error('Notes update error:', updateError)
+      return NextResponse.json(
+        { error: 'Failed to save notes' },
+        { status: 500 }
+      )
     }
 
-    console.log('Session saved with ID:', sessionData.id)
-
-    // Generate framework analysis with OpenAI
-    console.log('Starting framework analysis...')
-    
-    const analysisResponse = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [{
-        role: "user",
-        content: `Analyze these professional development notes and map them to educational frameworks:
-
-ORIGINAL PD AGENDA:
-${agendaData.content}
-
-PARTICIPANT: ${participantName}
-
-GENERIC NOTES:
-${genericNotes || 'No generic notes provided'}
-
-STRUCTURED RESPONSES:
-${Object.entries(structuredResponses || {}).map(([key, value]) => `${key}: ${value}`).join('\n')}
-
-Provide a comprehensive analysis mapping this learning to:
-
-1. AITSL PROFESSIONAL STANDARDS:
-For each relevant standard (1-7), identify:
-- Evidence of engagement with the standard
-- Specific examples from the notes
-- Professional growth demonstrated
-- Implementation opportunities
-
-Standards Reference:
-- Standard 1: Know students and how they learn
-- Standard 2: Know the content and how to teach it  
-- Standard 3: Plan for and implement effective teaching and learning
-- Standard 4: Create and maintain supportive learning environments
-- Standard 5: Assess, provide feedback and report on student learning
-- Standard 6: Engage in professional learning
-- Standard 7: Engage professionally with colleagues, parents/carers and the community
-
-2. QUALITY TEACHING MODEL:
-Analyze alignment with:
-- Intellectual Quality: Deep knowledge, higher-order thinking, substantive communication
-- Quality Learning Environment: Explicit quality criteria, high expectations, social support
-- Significance: Background knowledge, cultural knowledge, knowledge integration
-
-3. VISIBLE THINKING ROUTINES:
-- Which thinking routines were discussed or could be applied?
-- How can the learning enhance student thinking visibility?
-- Implementation strategies for thinking routines
-
-4. PEMBROKE EFFECTIVE PEDAGOGIES:
-- Connection to school-specific teaching approaches
-- Alignment with institutional values and methods
-- Integration opportunities with existing practices
-
-Return a structured JSON response with:
-{
-  "aitsl_analysis": {
-    "standards_addressed": [
-      {
-        "standard": "Standard X",
-        "evidence": "Specific evidence from notes",
-        "growth_demonstrated": "How this shows professional growth",
-        "implementation_opportunities": "How to apply this learning"
-      }
-    ],
-    "overall_compliance": "Summary of AITSL alignment"
-  },
-  "quality_teaching": {
-    "intellectual_quality": "Analysis and evidence",
-    "learning_environment": "Analysis and evidence", 
-    "significance": "Analysis and evidence"
-  },
-  "visible_thinking": {
-    "routines_identified": ["List of applicable routines"],
-    "implementation_strategies": "How to use these routines"
-  },
-  "pembroke_pedagogies": {
-    "alignment": "How this connects to Pembroke approaches",
-    "integration_opportunities": "Specific ways to integrate"
-  },
-  "key_insights": [
-    "3-5 key takeaways from the analysis"
-  ],
-  "recommendations": [
-    "3-5 specific recommendations for professional growth"
-  ]
-}`
-      }],
-      max_tokens: 2000
-    })
-
-    let rawAnalysis = analysisResponse.choices[0].message.content || '{}'
-    console.log('OpenAI analysis response length:', rawAnalysis.length)
-
-    // Clean up markdown formatting if present
-    rawAnalysis = rawAnalysis
-      .replace(/```json\n?/g, '')
-      .replace(/```\n?/g, '')
-      .trim()
-
-    let frameworkAnalysis
-    try {
-      frameworkAnalysis = JSON.parse(rawAnalysis)
-    } catch (parseError) {
-      console.error('JSON parse error for analysis:', parseError)
-      console.error('Raw analysis was:', rawAnalysis.substring(0, 500))
-      
-      // Fallback analysis structure
-      frameworkAnalysis = {
-        aitsl_analysis: {
-          standards_addressed: [
-            {
-              standard: "Standard 6: Engage in professional learning",
-              evidence: "Participant engaged in structured professional development session",
-              growth_demonstrated: "Active participation in learning activities and reflection",
-              implementation_opportunities: "Apply new knowledge and strategies in classroom practice"
-            }
-          ],
-          overall_compliance: "Demonstrates commitment to ongoing professional learning and growth"
-        },
-        quality_teaching: {
-          intellectual_quality: "Engaged with deep learning concepts during the session",
-          learning_environment: "Participated in supportive professional learning environment",
-          significance: "Connected new learning to existing practice and student needs"
-        },
-        visible_thinking: {
-          routines_identified: ["Reflection and metacognition"],
-          implementation_strategies: "Use reflection techniques to make learning visible to students"
-        },
-        pembroke_pedagogies: {
-          alignment: "Aligns with commitment to evidence-based teaching practices",
-          integration_opportunities: "Integrate new strategies with existing Pembroke teaching approaches"
-        },
-        key_insights: [
-          "Professional learning requires active engagement and reflection",
-          "New strategies must be adapted to specific teaching contexts",
-          "Ongoing reflection enhances implementation success"
-        ],
-        recommendations: [
-          "Continue to engage in regular professional learning opportunities",
-          "Document implementation attempts and outcomes", 
-          "Share learnings with colleagues for broader impact"
-        ]
-      }
-    }
-
-    console.log('Framework analysis completed')
+    // Generate framework analysis based on selected frameworks
+    const analysis = await generateFrameworkAnalysis(
+      sessionData.agendas.content,
+      general_notes,
+      responses,
+      selected_frameworks
+    )
 
     // Save analysis to reports table
     const { data: reportData, error: reportError } = await supabase
       .from('reports')
-      .insert([{
-        session_id: sessionData.id,
-        framework_analysis: frameworkAnalysis,
-        ai_insights: 'Framework analysis completed using GPT-4.1-mini'
-      }])
+      .insert({
+        session_id: session_id,
+        framework_analysis: analysis,
+        selected_frameworks: selected_frameworks,
+        created_at: new Date().toISOString()
+      })
       .select()
       .single()
 
     if (reportError) {
       console.error('Report save error:', reportError)
-      throw reportError
+      return NextResponse.json(
+        { error: 'Failed to save analysis' },
+        { status: 500 }
+      )
     }
-
-    console.log('Analysis saved to reports table')
 
     return NextResponse.json({
       success: true,
-      sessionId: sessionData.id,
-      reportId: reportData.id,
-      message: 'Notes analyzed and report generated successfully'
+      message: 'Notes saved and analysis generated successfully',
+      report_id: reportData.id
     })
 
   } catch (error) {
     console.error('Submit notes error:', error)
     return NextResponse.json(
-      { 
-        error: 'Failed to process notes and generate analysis',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     )
+  }
+}
+
+async function generateFrameworkAnalysis(
+  agendaContent: string,
+  generalNotes: string,
+  responses: Record<string, string>,
+  selectedFrameworks: Record<string, boolean>
+): Promise<FrameworkAnalysis> {
+  
+  // Combine all notes into one text for analysis
+  const allNotes = [
+    `General Notes: ${generalNotes}`,
+    ...Object.entries(responses).map(([questionId, response]) => 
+      `Response ${questionId}: ${response}`
+    )
+  ].join('\n\n')
+
+  // Build framework-specific analysis prompts
+  const frameworkPrompts = []
+  
+  if (selectedFrameworks.aitsl) {
+    frameworkPrompts.push(`
+    AITSL Standards Analysis:
+    Analyze against Australian Professional Standards for Teachers:
+    1. Know students and how they learn
+    2. Know the content and how to teach it
+    3. Plan for and implement effective teaching and learning
+    4. Create and maintain supportive and safe learning environments
+    5. Assess, provide feedback and report on student learning
+    6. Engage in professional learning
+    7. Engage professionally with colleagues, parents/carers and the community
+    
+    For each relevant standard, provide:
+    - Evidence from the notes
+    - Growth demonstrated
+    - Implementation opportunities
+    `)
+  }
+
+  if (selectedFrameworks.qtm) {
+    frameworkPrompts.push(`
+    Quality Teaching Model Analysis:
+    Analyze against three dimensions:
+    1. Intellectual Quality (deep knowledge, problematic knowledge, higher-order thinking, metalanguage, substantive communication)
+    2. Quality Learning Environment (explicit quality criteria, engagement, high expectations, social support, students' self-regulation, student direction)
+    3. Significance (background knowledge, cultural knowledge, knowledge integration, inclusivity, connectedness, narrative)
+    `)
+  }
+
+  if (selectedFrameworks.visible_thinking) {
+    frameworkPrompts.push(`
+    Visible Thinking Routines Analysis:
+    Identify any thinking routines or strategies mentioned such as:
+    - See-Think-Wonder
+    - Think-Pair-Share
+    - 3-2-1 Bridge
+    - Chalk Talk
+    - Compass Points
+    - Connect-Extend-Challenge
+    Provide implementation strategies for classroom use.
+    `)
+  }
+
+  if (selectedFrameworks.modern_classrooms) {
+    frameworkPrompts.push(`
+    Modern Classrooms Project Analysis:
+    Analyze alignment with:
+    - Self-paced learning
+    - Mastery-based progression
+    - Choice and flexibility
+    - Blended learning approaches
+    - Student agency and ownership
+    `)
+  }
+
+  if (selectedFrameworks.pembroke) {
+    frameworkPrompts.push(`
+    Pembroke Effective Pedagogies Analysis:
+    Analyze alignment with school-specific pedagogical approaches:
+    - Collaborative learning strategies
+    - Inquiry-based learning
+    - Differentiated instruction
+    - Student-centered approaches
+    - Assessment for learning
+    `)
+  }
+
+  const systemPrompt = `You are an expert educational analyst. Analyze the following professional learning notes against the selected educational frameworks. 
+
+  Context:
+  Session Agenda: ${agendaContent}
+  
+  Learning Notes: ${allNotes}
+  
+  Analysis Requirements:
+  ${frameworkPrompts.join('\n')}
+  
+  Provide your analysis in the following JSON structure, only including sections for selected frameworks:
+  
+  {
+    ${selectedFrameworks.aitsl ? `"aitsl_analysis": {
+      "standards_addressed": [
+        {
+          "standard": "Standard name",
+          "evidence": "Specific evidence from notes",
+          "growth_demonstrated": "How growth is shown",
+          "implementation_opportunities": "Future implementation ideas"
+        }
+      ],
+      "overall_compliance": "Overall assessment"
+    },` : ''}
+    ${selectedFrameworks.qtm ? `"quality_teaching": {
+      "intellectual_quality": "Analysis of intellectual quality dimension",
+      "learning_environment": "Analysis of learning environment dimension", 
+      "significance": "Analysis of significance dimension"
+    },` : ''}
+    ${selectedFrameworks.visible_thinking ? `"visible_thinking": {
+      "routines_identified": ["List of routines mentioned or applicable"],
+      "implementation_strategies": "How to implement in classroom"
+    },` : ''}
+    ${selectedFrameworks.modern_classrooms ? `"modern_classrooms": {
+      "alignment": "How learning aligns with modern classrooms principles",
+      "integration_opportunities": "Ways to integrate these approaches"
+    },` : ''}
+    ${selectedFrameworks.pembroke ? `"pembroke_pedagogies": {
+      "alignment": "Alignment with Pembroke pedagogical approaches",
+      "integration_opportunities": "Integration opportunities"
+    },` : ''}
+    "key_insights": ["Key insight 1", "Key insight 2", "Key insight 3"],
+    "recommendations": ["Recommendation 1", "Recommendation 2", "Recommendation 3"]
+  }
+  
+  Ensure all text is substantive and specific to the learning content provided.`
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 2000
+    })
+
+    const analysisText = completion.choices[0].message.content
+    if (!analysisText) {
+      throw new Error('No analysis generated')
+    }
+
+    // Parse the JSON response
+    const analysis = JSON.parse(analysisText)
+    return analysis
+
+  } catch (error) {
+    console.error('OpenAI analysis error:', error)
+    
+    // Return a fallback analysis structure
+    const fallbackAnalysis: FrameworkAnalysis = {
+      key_insights: ["Analysis could not be completed at this time"],
+      recommendations: ["Please try regenerating the report"]
+    }
+
+    // Add empty structures for selected frameworks
+    if (selectedFrameworks.aitsl) {
+      fallbackAnalysis.aitsl_analysis = {
+        standards_addressed: [],
+        overall_compliance: "Analysis pending"
+      }
+    }
+    
+    if (selectedFrameworks.qtm) {
+      fallbackAnalysis.quality_teaching = {
+        intellectual_quality: "Analysis pending",
+        learning_environment: "Analysis pending",
+        significance: "Analysis pending"
+      }
+    }
+    
+    if (selectedFrameworks.visible_thinking) {
+      fallbackAnalysis.visible_thinking = {
+        routines_identified: [],
+        implementation_strategies: "Analysis pending"
+      }
+    }
+    
+    if (selectedFrameworks.modern_classrooms) {
+      fallbackAnalysis.modern_classrooms = {
+        alignment: "Analysis pending",
+        integration_opportunities: "Analysis pending"
+      }
+    }
+    
+    if (selectedFrameworks.pembroke) {
+      fallbackAnalysis.pembroke_pedagogies = {
+        alignment: "Analysis pending",
+        integration_opportunities: "Analysis pending"
+      }
+    }
+
+    return fallbackAnalysis
   }
 }
