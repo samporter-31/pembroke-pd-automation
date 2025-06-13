@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Loader2, AlertCircle, CheckCircle, BookOpen, Brain, Target, School, Lightbulb } from 'lucide-react'
+import { Loader2, AlertCircle, CheckCircle, BookOpen, Brain, Target, School, Lightbulb, X, FileText, Send, ArrowLeft } from 'lucide-react'
 
 interface FormQuestion {
   id: string
@@ -29,6 +29,7 @@ interface FrameworkOption {
   description: string
   icon: React.ReactNode
   color: string
+  bgColor: string
 }
 
 export default function SessionPage() {
@@ -40,7 +41,7 @@ export default function SessionPage() {
   const [submitting, setSubmitting] = useState(false)
   const [sessionData, setSessionData] = useState<SessionData | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [notification, setNotification] = useState<string | null>(null)
+  const [notification, setNotification] = useState<{type: 'success' | 'error' | 'info' | 'warning', message: string} | null>(null)
   
   // Form responses
   const [generalNotes, setGeneralNotes] = useState('')
@@ -62,37 +63,62 @@ export default function SessionPage() {
       name: 'AITSL Standards',
       description: 'Australian Professional Standards for Teachers',
       icon: <Target className="w-5 h-5" />,
-      color: 'bg-blue-50 border-blue-200 text-blue-700'
+      color: 'text-blue-700',
+      bgColor: 'bg-blue-50 border-blue-200 hover:bg-blue-100'
     },
     {
       id: 'qtm',
       name: 'Quality Teaching Model',
       description: 'Intellectual Quality, Learning Environment, Significance',
       icon: <BookOpen className="w-5 h-5" />,
-      color: 'bg-green-50 border-green-200 text-green-700'
+      color: 'text-green-700',
+      bgColor: 'bg-green-50 border-green-200 hover:bg-green-100'
     },
     {
       id: 'visible_thinking',
       name: 'Visible Thinking Routines',
       description: 'Harvard Project Zero thinking strategies',
       icon: <Brain className="w-5 h-5" />,
-      color: 'bg-purple-50 border-purple-200 text-purple-700'
+      color: 'text-purple-700',
+      bgColor: 'bg-purple-50 border-purple-200 hover:bg-purple-100'
     },
     {
       id: 'modern_classrooms',
       name: 'Modern Classrooms Project',
       description: 'Self-paced, mastery-based learning approaches',
       icon: <Lightbulb className="w-5 h-5" />,
-      color: 'bg-orange-50 border-orange-200 text-orange-700'
+      color: 'text-orange-700',
+      bgColor: 'bg-orange-50 border-orange-200 hover:bg-orange-100'
     },
     {
       id: 'pembroke',
       name: 'Pembroke Effective Pedagogies',
       description: 'School-specific teaching methodologies',
       icon: <School className="w-5 h-5" />,
-      color: 'bg-indigo-50 border-indigo-200 text-indigo-700'
+      color: 'text-indigo-700',
+      bgColor: 'bg-indigo-50 border-indigo-200 hover:bg-indigo-100'
     }
   ]
+
+  const showNotification = (type: 'success' | 'error' | 'info' | 'warning', message: string) => {
+    setNotification({ type, message })
+    setTimeout(() => setNotification(null), 5000)
+  }
+
+  const getNotificationStyle = (type: string) => {
+    switch (type) {
+      case 'success':
+        return 'bg-white border-l-4 border-l-green-500 text-gray-900 shadow-sm'
+      case 'error':  
+        return 'bg-white border-l-4 border-l-red-500 text-gray-900 shadow-sm'
+      case 'info':
+        return 'bg-white border-l-4 border-l-blue-500 text-gray-900 shadow-sm'
+      case 'warning':
+        return 'bg-white border-l-4 border-l-orange-500 text-gray-900 shadow-sm'
+      default:
+        return 'bg-white border-l-4 border-l-gray-500 text-gray-900 shadow-sm'
+    }
+  }
 
   useEffect(() => {
     if (params.id) {
@@ -175,7 +201,7 @@ export default function SessionPage() {
       const result = await response.json()
       
       // Show success notification
-      setNotification('Notes saved successfully! Generating your report...')
+      showNotification('success', 'Notes saved successfully! Generating your report...')
       
       // Redirect to report page after short delay
       setTimeout(() => {
@@ -195,8 +221,11 @@ export default function SessionPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading your session...</p>
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Your Session</h2>
+          <p className="text-gray-600">Preparing your note-taking form...</p>
         </div>
       </div>
     )
@@ -207,13 +236,16 @@ export default function SessionPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-red-600" />
+          </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Session Not Found</h1>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
             onClick={() => router.push('/')}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
           >
+            <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Home
           </button>
         </div>
@@ -223,122 +255,207 @@ export default function SessionPage() {
 
   if (!sessionData) return null
 
+  const getProgressPercentage = () => {
+    const totalFields = 1 + (sessionData.form_structure?.questions?.length || 0) // General notes + questions
+    const completedFields = (generalNotes.trim() ? 1 : 0) + 
+      Object.values(responses).filter(response => response.trim()).length
+    
+    return Math.round((completedFields / totalFields) * 100)
+  }
+
+  const selectedFrameworksCount = Object.values(selectedFrameworks).filter(Boolean).length
+
   return (
-    <main className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        {/* Header */}
-        <div className="bg-white rounded-xl shadow-sm p-8 mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Professional Learning Session
-          </h1>
-          <div className="text-gray-600 mb-4">
-            <p><span className="font-medium">Session:</span> {sessionData.agendas.title}</p>
-            <p><span className="font-medium">Participant:</span> {sessionData.participant_name}</p>
+    <main className="min-h-screen bg-gray-50">
+      {/* Header Section */}
+      <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white">
+        <div className="max-w-5xl mx-auto px-4 py-12">
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={() => router.push('/')}
+              className="inline-flex items-center text-blue-100 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              New Session
+            </button>
           </div>
           
-          {/* Session Instructions */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-blue-900 mb-2">📝 How to Use This Session</h2>
-            <div className="text-blue-800 text-sm space-y-2">
-              <p>• Take notes during your professional learning session</p>
-              <p>• Answer the AI-generated questions based on the session content</p>
-              <p>• Select which frameworks you'd like your learning mapped to</p>
-              <p>• Submit to generate your personalized professional development report</p>
+          <div className="text-center">
+            <h1 className="text-3xl md:text-4xl font-bold mb-4">
+              Professional Learning Session
+            </h1>
+            <div className="text-lg text-blue-100 mb-6 space-y-1">
+              <p><span className="font-medium">Session:</span> {sessionData.agendas.title}</p>
+              <p><span className="font-medium">Participant:</span> {sessionData.participant_name}</p>
+            </div>
+            
+            {/* Progress Bar */}
+            <div className="max-w-md mx-auto">
+              <div className="flex items-center justify-between text-sm text-blue-100 mb-2">
+                <span>Completion Progress</span>
+                <span>{getProgressPercentage()}%</span>
+              </div>
+              <div className="w-full bg-blue-800/30 rounded-full h-2">
+                <div 
+                  className="bg-blue-300 h-2 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${getProgressPercentage()}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        {/* Instructions */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+          <div className="flex items-start">
+            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+              <FileText className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">📝 How to Use This Session</h2>
+              <div className="text-gray-700 space-y-1 text-sm">
+                <p>• Take notes during your professional learning session</p>
+                <p>• Answer the AI-generated questions based on the session content</p>
+                <p>• Select which frameworks you'd like your learning mapped to</p>
+                <p>• Submit to generate your personalized professional development report</p>
+              </div>
             </div>
           </div>
         </div>
 
+        {/* Notification */}
+        {notification && (
+          <div className={`mb-6 p-4 rounded-lg ${getNotificationStyle(notification.type)}`}>
+            <div className="flex items-start">
+              <div className="flex-shrink-0 mr-3">
+                {notification.type === 'success' && <CheckCircle className="h-5 w-5 text-green-500" />}
+                {notification.type === 'error' && <AlertCircle className="h-5 w-5 text-red-500" />}
+                {notification.type === 'info' && <AlertCircle className="h-5 w-5 text-blue-500" />}
+                {notification.type === 'warning' && <AlertCircle className="h-5 w-5 text-orange-500" />}
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-gray-900">{notification.message}</p>
+              </div>
+              <button
+                onClick={() => setNotification(null)}
+                className="flex-shrink-0 ml-4 text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Framework Selection */}
-          <div className="bg-white rounded-xl shadow-sm p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              🎯 Select Analysis Frameworks
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Choose which educational frameworks you'd like your learning mapped to in the final report.
-            </p>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-sm">1</span>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Select Analysis Frameworks</h2>
+                <p className="text-gray-600 text-sm">Choose which educational frameworks to map your learning to</p>
+              </div>
+            </div>
             
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {frameworkOptions.map((framework) => (
                 <label
                   key={framework.id}
-                  className={`relative flex items-start p-4 border-2 rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                  className={`relative flex items-start p-4 border-2 rounded-lg cursor-pointer transition-all ${
                     selectedFrameworks[framework.id]
-                      ? framework.color
-                      : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                      ? `${framework.bgColor} border-current`
+                      : 'bg-gray-50 border-gray-200 hover:border-gray-300 hover:bg-gray-100'
                   }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={selectedFrameworks[framework.id]}
-                    onChange={(e) => handleFrameworkChange(framework.id, e.target.checked)}
-                    className="sr-only"
-                  />
-                  <div className="flex-shrink-0 mr-3 mt-1">
-                    {framework.icon}
+                  <div className="flex items-center h-5">
+                    <input
+                      type="checkbox"
+                      checked={selectedFrameworks[framework.id]}
+                      onChange={(e) => handleFrameworkChange(framework.id, e.target.checked)}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                    />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center">
-                      <h3 className="font-semibold text-sm">{framework.name}</h3>
-                      {selectedFrameworks[framework.id] && (
-                        <CheckCircle className="w-4 h-4 ml-2 flex-shrink-0" />
-                      )}
+                  <div className="ml-3 flex-1 min-w-0">
+                    <div className={`flex items-center ${framework.color}`}>
+                      {framework.icon}
+                      <span className="font-semibold text-sm ml-2">{framework.name}</span>
                     </div>
-                    <p className="text-xs mt-1 opacity-80">{framework.description}</p>
+                    <p className="text-xs mt-1 text-gray-600">{framework.description}</p>
                   </div>
                 </label>
               ))}
             </div>
             
-            {!Object.values(selectedFrameworks).some(selected => selected) && (
-              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-yellow-800 text-sm">
-                  ⚠️ Please select at least one framework for analysis
-                </p>
-              </div>
-            )}
+            <div className="mt-4 flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+              <span className="text-sm text-blue-800">
+                {selectedFrameworksCount} framework{selectedFrameworksCount !== 1 ? 's' : ''} selected
+              </span>
+              {selectedFrameworksCount === 0 && (
+                <span className="text-sm text-orange-600 font-medium">⚠️ Select at least one framework</span>
+              )}
+            </div>
           </div>
 
           {/* General Notes Section */}
-          <div className="bg-white rounded-xl shadow-sm p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              📋 General Notes
-            </h2>
-            <p className="text-gray-600 mb-4">
-              Record your key takeaways, insights, and reflections from the session.
-            </p>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-sm">2</span>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">General Notes</h2>
+                <p className="text-gray-600 text-sm">Record your key takeaways and reflections</p>
+              </div>
+            </div>
+            
             <textarea
               value={generalNotes}
               onChange={(e) => setGeneralNotes(e.target.value)}
               placeholder="What were the main concepts covered? What resonated with you? How might you apply these ideas in your teaching practice?"
-              className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
+              className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical transition-colors"
             />
+            <div className="mt-2 text-xs text-gray-500">
+              {generalNotes.length} characters • Be specific about what you learned and how you'll apply it
+            </div>
           </div>
 
           {/* AI-Generated Questions */}
           {sessionData.form_structure?.questions?.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                🤖 Session-Specific Questions
-              </h2>
-              <p className="text-gray-600 mb-6">
-                These questions were generated based on your session agenda to help capture specific learning outcomes.
-              </p>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">3</span>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Session-Specific Questions</h2>
+                  <p className="text-gray-600 text-sm">AI-generated questions based on your agenda content</p>
+                </div>
+              </div>
               
               <div className="space-y-6">
                 {sessionData.form_structure.questions.map((question, index) => (
-                  <div key={question.id} className="border-l-4 border-blue-500 pl-6">
-                    <label className="block font-medium text-gray-900 mb-2">
-                      {index + 1}. {question.question}
+                  <div key={question.id} className="border-l-4 border-blue-500 pl-6 bg-blue-50/30 py-4 rounded-r-lg">
+                    <label className="block font-medium text-gray-900 mb-3">
+                      <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-600 text-white text-xs font-bold rounded-full mr-2">
+                        {index + 1}
+                      </span>
+                      {question.question}
                       {question.required && <span className="text-red-500 ml-1">*</span>}
                     </label>
                     <textarea
                       value={responses[question.id] || ''}
                       onChange={(e) => handleResponseChange(question.id, e.target.value)}
                       placeholder="Share your thoughts, examples, or reflections..."
-                      className="w-full h-24 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
+                      className="w-full h-24 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical transition-colors"
                       required={question.required}
                     />
+                    <div className="mt-1 text-xs text-gray-500">
+                      {(responses[question.id] || '').length} characters
+                    </div>
                   </div>
                 ))}
               </div>
@@ -347,45 +464,55 @@ export default function SessionPage() {
 
           {/* Error Display */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="bg-white border-l-4 border-l-red-500 rounded-lg p-4 shadow-sm">
               <div className="flex items-center">
                 <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
-                <p className="text-red-800">{error}</p>
+                <p className="text-red-800 font-medium">{error}</p>
               </div>
             </div>
           )}
 
-          {/* Success Notification */}
-          {notification && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center">
-                <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-                <p className="text-green-800">{notification}</p>
+          {/* Submit Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-sm">4</span>
               </div>
-            </div>
-          )}
-
-          {/* Submit Button */}
-          <div className="bg-white rounded-xl shadow-sm p-8">
-            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
               <div>
-                <h3 className="font-semibold text-gray-900">Ready to Generate Your Report?</h3>
-                <p className="text-gray-600 text-sm">Your responses will be analyzed against the selected frameworks.</p>
+                <h3 className="text-xl font-bold text-gray-900">Generate Your Report</h3>
+                <p className="text-gray-600 text-sm">Create your professional learning analysis</p>
               </div>
-              <button
-                type="submit"
-                disabled={submitting || !Object.values(selectedFrameworks).some(selected => selected)}
-                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Generating Report...
-                  </>
-                ) : (
-                  'Generate Professional Learning Report'
-                )}
-              </button>
+            </div>
+            
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900 mb-2">Ready to Generate Your Report?</h4>
+                  <p className="text-gray-700 text-sm mb-2">
+                    Your responses will be analyzed against the {selectedFrameworksCount} selected framework{selectedFrameworksCount !== 1 ? 's' : ''}.
+                  </p>
+                  <div className="text-xs text-gray-600">
+                    Progress: {getProgressPercentage()}% complete
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={submitting || selectedFrameworksCount === 0}
+                  className="inline-flex items-center px-8 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-3 animate-spin" />
+                      Generating Report...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-5 h-5 mr-3" />
+                      Generate Professional Learning Report
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </form>

@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Loader2, AlertCircle, FileText, Download, Home } from 'lucide-react'
+import { Loader2, AlertCircle, FileText, Download, Home, Target, BookOpen, Brain, School, Lightbulb, CheckCircle, TrendingUp, X } from 'lucide-react'
 
-// Type definitions for better TypeScript support
+// Type definitions
 interface AITSLStandard {
   standard: string
   evidence: string
@@ -57,31 +57,44 @@ interface ReportData {
 }
 
 export default function ReportPage() {
-  // Next.js hooks for routing
   const params = useParams()
   const router = useRouter()
   
-  // React state management
   const [loading, setLoading] = useState(true)
   const [reportData, setReportData] = useState<ReportData | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState('aitsl')
+  const [activeTab, setActiveTab] = useState('overview')
+  const [notification, setNotification] = useState<{type: 'success' | 'error' | 'info', message: string} | null>(null)
 
-  // Effect hook - runs when component mounts or params.id changes
+  const showNotification = (type: 'success' | 'error' | 'info', message: string) => {
+    setNotification({ type, message })
+    setTimeout(() => setNotification(null), 3000)
+  }
+
+  const getNotificationStyle = (type: string) => {
+    switch (type) {
+      case 'success':
+        return 'bg-white border-l-4 border-l-green-500 text-gray-900 shadow-sm'
+      case 'error':  
+        return 'bg-white border-l-4 border-l-red-500 text-gray-900 shadow-sm'
+      case 'info':
+        return 'bg-white border-l-4 border-l-blue-500 text-gray-900 shadow-sm'
+      default:
+        return 'bg-white border-l-4 border-l-gray-500 text-gray-900 shadow-sm'
+    }
+  }
+
   useEffect(() => {
-    // Only fetch if we have an ID
     if (params.id) {
       fetchReport()
     }
   }, [params.id])
 
-  // Async function to fetch report data
   const fetchReport = async () => {
     try {
       setLoading(true)
       setError(null)
       
-      // Make API call with proper error handling
       const response = await fetch(`/api/get-report/${params.id}`, {
         method: 'GET',
         headers: {
@@ -90,7 +103,6 @@ export default function ReportPage() {
       })
       
       if (!response.ok) {
-        // Handle different HTTP errors
         if (response.status === 404) {
           throw new Error('Report not found')
         } else if (response.status === 500) {
@@ -107,33 +119,35 @@ export default function ReportPage() {
       console.error('Error fetching report:', error)
       setError(error instanceof Error ? error.message : 'An unexpected error occurred')
     } finally {
-      // Always runs, regardless of success or failure
       setLoading(false)
     }
   }
 
   const handleExport = async () => {
     try {
-      // TODO: Implement PDF export
-      alert('Export functionality coming soon!')
+      showNotification('info', 'Export functionality coming soon!')
     } catch (error) {
       console.error('Export error:', error)
+      showNotification('error', 'Export failed')
     }
   }
 
-  // Loading state - shown while fetching data
+  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading your professional learning report...</p>
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Your Report</h2>
+          <p className="text-gray-600">Analyzing your professional learning...</p>
         </div>
       </div>
     )
   }
 
-  // Error state - shown if something went wrong
+  // Error state
   if (error || !reportData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -145,94 +159,147 @@ export default function ReportPage() {
           <p className="text-gray-600 mb-6">{error}</p>
           <button
             onClick={() => router.push('/')}
-            className="inline-flex items-center bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
           >
             <Home className="w-4 h-4 mr-2" />
-            Back to Home
+            Create New Session
           </button>
         </div>
       </div>
     )
   }
 
-  // Destructure data for easier access
   const { session, agenda, analysis } = reportData
 
-  // Main render - only shown when data is loaded successfully
+  const tabs = [
+    { id: 'overview', name: 'Overview', icon: <FileText className="w-4 h-4" /> },
+    { id: 'aitsl', name: 'AITSL Standards', icon: <Target className="w-4 h-4" />, available: !!analysis.aitsl_analysis },
+    { id: 'quality', name: 'Quality Teaching', icon: <BookOpen className="w-4 h-4" />, available: !!analysis.quality_teaching },
+    { id: 'thinking', name: 'Visible Thinking', icon: <Brain className="w-4 h-4" />, available: !!analysis.visible_thinking },
+    { id: 'pembroke', name: 'Pembroke Pedagogies', icon: <School className="w-4 h-4" />, available: !!analysis.pembroke_pedagogies },
+    { id: 'modern', name: 'Modern Classrooms', icon: <Lightbulb className="w-4 h-4" />, available: !!analysis.modern_classrooms },
+    { id: 'insights', name: 'Key Insights', icon: <TrendingUp className="w-4 h-4" /> }
+  ]
+
   return (
-    <main className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-6xl mx-auto px-4">
-        {/* Header Section */}
-        <div className="bg-white rounded-xl shadow-sm p-8 mb-8">
-          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-6">
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                Professional Learning Report
-              </h1>
-              <div className="grid gap-2 text-sm text-gray-600">
-                <div><span className="font-medium">Participant:</span> {session.participant_name}</div>
-                <div><span className="font-medium">Session:</span> {agenda.title}</div>
-                <div><span className="font-medium">Date:</span> {new Date(session.created_at).toLocaleDateString()}</div>
-              </div>
+    <main className="min-h-screen bg-gray-50">
+      {/* Header Section */}
+      <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white">
+        <div className="max-w-7xl mx-auto px-4 py-12">
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={() => router.push('/')}
+              className="inline-flex items-center text-blue-100 hover:text-white transition-colors"
+            >
+              <Home className="w-4 h-4 mr-2" />
+              New Session
+            </button>
+            <button
+              onClick={handleExport}
+              className="inline-flex items-center bg-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/20"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export PDF
+            </button>
+          </div>
+          
+          <div className="text-center">
+            <h1 className="text-3xl md:text-4xl font-bold mb-4">
+              Professional Learning Report
+            </h1>
+            <div className="text-lg text-blue-100 mb-6 space-y-1">
+              <p><span className="font-medium">Participant:</span> {session.participant_name}</p>
+              <p><span className="font-medium">Session:</span> {agenda.title}</p>
+              <p><span className="font-medium">Date:</span> {new Date(session.created_at).toLocaleDateString()}</p>
             </div>
             
-            {/* Action Buttons */}
-            <div className="flex flex-wrap gap-3">
+            {/* Report Status */}
+            <div className="inline-flex items-center px-4 py-2 bg-green-500/20 text-green-100 rounded-full border border-green-400/30">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Analysis Complete
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Notification */}
+        {notification && (
+          <div className={`mb-6 p-4 rounded-lg ${getNotificationStyle(notification.type)}`}>
+            <div className="flex items-start">
+              <div className="flex-shrink-0 mr-3">
+                {notification.type === 'success' && <CheckCircle className="h-5 w-5 text-green-500" />}
+                {notification.type === 'error' && <AlertCircle className="h-5 w-5 text-red-500" />}
+                {notification.type === 'info' && <AlertCircle className="h-5 w-5 text-blue-500" />}
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-gray-900">{notification.message}</p>
+              </div>
               <button
-                onClick={() => router.push('/')}
-                className="inline-flex items-center px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                onClick={() => setNotification(null)}
+                className="flex-shrink-0 ml-4 text-gray-400 hover:text-gray-600"
               >
-                <Home className="w-4 h-4 mr-2" />
-                New Session
-              </button>
-              <button
-                onClick={handleExport}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Export PDF
+                <X className="h-4 w-4" />
               </button>
             </div>
           </div>
+        )}
 
-          {/* Executive Summary */}
-          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <div className="flex items-start">
-              <FileText className="w-6 h-6 text-blue-600 mr-3 mt-0.5" />
-              <div>
-                <h2 className="text-xl font-semibold text-blue-900 mb-3">Executive Summary</h2>
-                <p className="text-blue-800">
-                  This report analyzes professional learning engagement against key educational frameworks, 
-                  providing evidence of professional growth and recommendations for continued development.
-                </p>
+        {/* Executive Summary */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
+          <div className="flex items-start">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+              <FileText className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">Executive Summary</h2>
+              <p className="text-gray-700 mb-4">
+                This report analyzes your professional learning engagement against selected educational frameworks, 
+                providing evidence of professional growth and actionable recommendations for continued development.
+              </p>
+              <div className="grid md:grid-cols-3 gap-4 mt-6">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">{analysis.key_insights?.length || 0}</div>
+                  <div className="text-sm text-blue-800">Key Insights</div>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">{analysis.recommendations?.length || 0}</div>
+                  <div className="text-sm text-green-800">Recommendations</div>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {tabs.filter(tab => tab.available && tab.id !== 'overview' && tab.id !== 'insights').length}
+                  </div>
+                  <div className="text-sm text-purple-800">Frameworks Analyzed</div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Framework Analysis Tabs */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           {/* Tab Navigation */}
           <div className="border-b border-gray-200 overflow-x-auto">
             <nav className="flex min-w-max">
-              {[
-                { id: 'aitsl', name: 'AITSL Standards', icon: '🎯' },
-                { id: 'quality', name: 'Quality Teaching', icon: '📚' },
-                { id: 'thinking', name: 'Visible Thinking', icon: '💭' },
-                { id: 'pembroke', name: 'Pembroke Pedagogies', icon: '🏫' },
-                { id: 'insights', name: 'Key Insights', icon: '💡' }
-              ].map((tab) => (
+              {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-shrink-0 px-6 py-4 font-medium text-sm border-b-2 transition-colors ${
+                  disabled={tab.available === false}
+                  className={`flex items-center flex-shrink-0 px-6 py-4 font-medium text-sm border-b-2 transition-colors ${
                     activeTab === tab.id
                       ? 'border-blue-500 text-blue-600 bg-blue-50'
+                      : tab.available === false
+                      ? 'border-transparent text-gray-400 cursor-not-allowed'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  <span className="mr-2">{tab.icon}</span>
-                  {tab.name}
+                  {tab.icon}
+                  <span className="ml-2">{tab.name}</span>
+                  {tab.available === false && (
+                    <span className="ml-2 text-xs bg-gray-200 text-gray-500 px-2 py-0.5 rounded">N/A</span>
+                  )}
                 </button>
               ))}
             </nav>
@@ -240,39 +307,76 @@ export default function ReportPage() {
 
           {/* Tab Content */}
           <div className="p-8">
-            {/* AITSL Standards Tab */}
-            {activeTab === 'aitsl' && (
+            {/* Overview Tab */}
+            {activeTab === 'overview' && (
               <div className="space-y-6">
-                <div className="mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-3">
-                    🎯 AITSL Professional Standards Analysis
-                  </h2>
-                  {analysis.aitsl_analysis?.overall_compliance && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <p className="text-green-800">
-                        <span className="font-medium">Overall Compliance:</span> {analysis.aitsl_analysis.overall_compliance}
-                      </p>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Professional Learning Analysis Overview</h2>
+                
+                {/* Framework Coverage */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
+                    <h3 className="text-lg font-semibold text-blue-900 mb-3">Frameworks Analyzed</h3>
+                    <div className="space-y-2">
+                      {tabs.filter(tab => tab.available && tab.id !== 'overview' && tab.id !== 'insights').map((tab) => (
+                        <div key={tab.id} className="flex items-center text-blue-800">
+                          <CheckCircle className="w-4 h-4 mr-2 text-blue-600" />
+                          {tab.name}
+                        </div>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                  
+                  <div className="bg-green-50 rounded-lg p-6 border border-green-200">
+                    <h3 className="text-lg font-semibold text-green-900 mb-3">Learning Outcomes</h3>
+                    <div className="space-y-2 text-green-800">
+                      <div>✓ Professional standards alignment identified</div>
+                      <div>✓ Growth opportunities mapped</div>
+                      <div>✓ Implementation strategies provided</div>
+                      <div>✓ Next steps recommended</div>
+                    </div>
+                  </div>
                 </div>
+              </div>
+            )}
+
+            {/* AITSL Standards Tab */}
+            {activeTab === 'aitsl' && analysis.aitsl_analysis && (
+              <div className="space-y-6">
+                <div className="flex items-center space-x-3 mb-6">
+                  <Target className="w-8 h-8 text-blue-600" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">AITSL Professional Standards Analysis</h2>
+                    <p className="text-gray-600">Australian Professional Standards for Teachers</p>
+                  </div>
+                </div>
+                
+                {analysis.aitsl_analysis.overall_compliance && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                    <h3 className="font-semibold text-green-900 mb-2">Overall Compliance Assessment</h3>
+                    <p className="text-green-800">{analysis.aitsl_analysis.overall_compliance}</p>
+                  </div>
+                )}
 
                 <div className="space-y-6">
-                  {analysis.aitsl_analysis?.standards_addressed?.length > 0 ? (
+                  {analysis.aitsl_analysis.standards_addressed?.length > 0 ? (
                     analysis.aitsl_analysis.standards_addressed.map((standard, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      <div key={index} className="border border-gray-200 rounded-lg p-6 bg-gray-50">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                          <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">
+                            {index + 1}
+                          </span>
                           {standard.standard}
                         </h3>
                         <div className="grid gap-4 md:grid-cols-3">
-                          <div>
+                          <div className="bg-white p-4 rounded-lg border">
                             <h4 className="font-medium text-gray-700 mb-2">Evidence</h4>
                             <p className="text-gray-600 text-sm">{standard.evidence}</p>
                           </div>
-                          <div>
+                          <div className="bg-white p-4 rounded-lg border">
                             <h4 className="font-medium text-gray-700 mb-2">Growth Demonstrated</h4>
                             <p className="text-gray-600 text-sm">{standard.growth_demonstrated}</p>
                           </div>
-                          <div>
+                          <div className="bg-white p-4 rounded-lg border">
                             <h4 className="font-medium text-gray-700 mb-2">Implementation Opportunities</h4>
                             <p className="text-gray-600 text-sm">{standard.implementation_opportunities}</p>
                           </div>
@@ -281,7 +385,7 @@ export default function ReportPage() {
                     ))
                   ) : (
                     <div className="text-center py-8 text-gray-500">
-                      <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                      <Target className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                       <p>No AITSL standards analysis available</p>
                     </div>
                   )}
@@ -290,69 +394,119 @@ export default function ReportPage() {
             )}
 
             {/* Quality Teaching Tab */}
-            {activeTab === 'quality' && (
+            {activeTab === 'quality' && analysis.quality_teaching && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  📚 Quality Teaching Model Analysis
-                </h2>
+                <div className="flex items-center space-x-3 mb-6">
+                  <BookOpen className="w-8 h-8 text-green-600" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Quality Teaching Model Analysis</h2>
+                    <p className="text-gray-600">Three dimensions of quality teaching</p>
+                  </div>
+                </div>
+                
                 <div className="grid gap-6">
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Intellectual Quality</h3>
-                    <p className="text-gray-700">{analysis.quality_teaching?.intellectual_quality || 'No analysis available'}</p>
+                  <div className="border border-gray-200 rounded-lg p-6 bg-green-50">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                      <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
+                      Intellectual Quality
+                    </h3>
+                    <p className="text-gray-700">{analysis.quality_teaching.intellectual_quality || 'No analysis available'}</p>
                   </div>
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Quality Learning Environment</h3>
-                    <p className="text-gray-700">{analysis.quality_teaching?.learning_environment || 'No analysis available'}</p>
+                  <div className="border border-gray-200 rounded-lg p-6 bg-blue-50">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full mr-3"></div>
+                      Quality Learning Environment
+                    </h3>
+                    <p className="text-gray-700">{analysis.quality_teaching.learning_environment || 'No analysis available'}</p>
                   </div>
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Significance</h3>
-                    <p className="text-gray-700">{analysis.quality_teaching?.significance || 'No analysis available'}</p>
+                  <div className="border border-gray-200 rounded-lg p-6 bg-purple-50">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                      <div className="w-3 h-3 bg-purple-500 rounded-full mr-3"></div>
+                      Significance
+                    </h3>
+                    <p className="text-gray-700">{analysis.quality_teaching.significance || 'No analysis available'}</p>
                   </div>
                 </div>
               </div>
             )}
 
             {/* Visible Thinking Tab */}
-            {activeTab === 'thinking' && (
+            {activeTab === 'thinking' && analysis.visible_thinking && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  💭 Visible Thinking Routines Analysis
-                </h2>
+                <div className="flex items-center space-x-3 mb-6">
+                  <Brain className="w-8 h-8 text-purple-600" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Visible Thinking Routines Analysis</h2>
+                    <p className="text-gray-600">Harvard Project Zero thinking strategies</p>
+                  </div>
+                </div>
+                
                 <div className="grid gap-6">
-                  <div className="border border-gray-200 rounded-lg p-6">
+                  <div className="border border-gray-200 rounded-lg p-6 bg-purple-50">
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">Routines Identified</h3>
-                    {analysis.visible_thinking?.routines_identified?.length > 0 ? (
-                      <ul className="list-disc list-inside space-y-1">
+                    {analysis.visible_thinking.routines_identified?.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
                         {analysis.visible_thinking.routines_identified.map((routine, index) => (
-                          <li key={index} className="text-gray-700">{routine}</li>
+                          <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800 border border-purple-200">
+                            {routine}
+                          </span>
                         ))}
-                      </ul>
+                      </div>
                     ) : (
                       <p className="text-gray-500">No specific routines identified</p>
                     )}
                   </div>
-                  <div className="border border-gray-200 rounded-lg p-6">
+                  <div className="border border-gray-200 rounded-lg p-6 bg-white">
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">Implementation Strategies</h3>
-                    <p className="text-gray-700">{analysis.visible_thinking?.implementation_strategies || 'No implementation strategies provided'}</p>
+                    <p className="text-gray-700">{analysis.visible_thinking.implementation_strategies || 'No implementation strategies provided'}</p>
                   </div>
                 </div>
               </div>
             )}
 
             {/* Pembroke Pedagogies Tab */}
-            {activeTab === 'pembroke' && (
+            {activeTab === 'pembroke' && analysis.pembroke_pedagogies && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  🏫 Pembroke Effective Pedagogies Analysis
-                </h2>
-                <div className="grid gap-6">
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Alignment</h3>
-                    <p className="text-gray-700">{analysis.pembroke_pedagogies?.alignment || 'No alignment analysis available'}</p>
+                <div className="flex items-center space-x-3 mb-6">
+                  <School className="w-8 h-8 text-indigo-600" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Pembroke Effective Pedagogies Analysis</h2>
+                    <p className="text-gray-600">School-specific pedagogical approaches</p>
                   </div>
-                  <div className="border border-gray-200 rounded-lg p-6">
+                </div>
+                
+                <div className="grid gap-6">
+                  <div className="border border-gray-200 rounded-lg p-6 bg-indigo-50">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Alignment Assessment</h3>
+                    <p className="text-gray-700">{analysis.pembroke_pedagogies.alignment || 'No alignment analysis available'}</p>
+                  </div>
+                  <div className="border border-gray-200 rounded-lg p-6 bg-white">
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">Integration Opportunities</h3>
-                    <p className="text-gray-700">{analysis.pembroke_pedagogies?.integration_opportunities || 'No integration opportunities identified'}</p>
+                    <p className="text-gray-700">{analysis.pembroke_pedagogies.integration_opportunities || 'No integration opportunities identified'}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modern Classrooms Tab */}
+            {activeTab === 'modern' && analysis.modern_classrooms && (
+              <div className="space-y-6">
+                <div className="flex items-center space-x-3 mb-6">
+                  <Lightbulb className="w-8 h-8 text-orange-600" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Modern Classrooms Project Analysis</h2>
+                    <p className="text-gray-600">Self-paced, mastery-based learning approaches</p>
+                  </div>
+                </div>
+                
+                <div className="grid gap-6">
+                  <div className="border border-gray-200 rounded-lg p-6 bg-orange-50">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Alignment Assessment</h3>
+                    <p className="text-gray-700">{analysis.modern_classrooms.alignment || 'No alignment analysis available'}</p>
+                  </div>
+                  <div className="border border-gray-200 rounded-lg p-6 bg-white">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Integration Opportunities</h3>
+                    <p className="text-gray-700">{analysis.modern_classrooms.integration_opportunities || 'No integration opportunities identified'}</p>
                   </div>
                 </div>
               </div>
@@ -361,17 +515,29 @@ export default function ReportPage() {
             {/* Key Insights Tab */}
             {activeTab === 'insights' && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  💡 Key Insights & Recommendations
-                </h2>
+                <div className="flex items-center space-x-3 mb-6">
+                  <TrendingUp className="w-8 h-8 text-blue-600" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Key Insights & Recommendations</h2>
+                    <p className="text-gray-600">Actionable takeaways from your professional learning</p>
+                  </div>
+                </div>
+                
                 <div className="grid gap-6 md:grid-cols-2">
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Key Insights</h3>
+                  <div className="border border-gray-200 rounded-lg p-6 bg-blue-50">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center mr-3">
+                        <TrendingUp className="w-3 h-3 text-white" />
+                      </div>
+                      Key Insights
+                    </h3>
                     {analysis.key_insights?.length > 0 ? (
-                      <ul className="space-y-2">
+                      <ul className="space-y-3">
                         {analysis.key_insights.map((insight, index) => (
                           <li key={index} className="flex items-start">
-                            <span className="text-blue-600 mr-2 font-bold">•</span>
+                            <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                              <span className="text-white text-xs font-bold">{index + 1}</span>
+                            </div>
                             <span className="text-gray-700">{insight}</span>
                           </li>
                         ))}
@@ -380,13 +546,21 @@ export default function ReportPage() {
                       <p className="text-gray-500">No key insights available</p>
                     )}
                   </div>
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Recommendations</h3>
+                  
+                  <div className="border border-gray-200 rounded-lg p-6 bg-green-50">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center mr-3">
+                        <CheckCircle className="w-3 h-3 text-white" />
+                      </div>
+                      Recommendations
+                    </h3>
                     {analysis.recommendations?.length > 0 ? (
-                      <ul className="space-y-2">
+                      <ul className="space-y-3">
                         {analysis.recommendations.map((recommendation, index) => (
                           <li key={index} className="flex items-start">
-                            <span className="text-green-600 mr-2 font-bold">→</span>
+                            <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                              <span className="text-white text-xs font-bold">{index + 1}</span>
+                            </div>
                             <span className="text-gray-700">{recommendation}</span>
                           </li>
                         ))}
@@ -402,29 +576,29 @@ export default function ReportPage() {
         </div>
 
         {/* Next Steps Section */}
-        <div className="bg-white rounded-xl shadow-sm p-8 mt-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">🎯 Next Steps</h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mt-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">🎯 Your Professional Development Journey</h2>
           <div className="grid gap-6 md:grid-cols-3">
-            <div className="text-center p-6 bg-blue-50 rounded-lg">
-              <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white font-bold">1</span>
+            <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-white font-bold text-lg">1</span>
               </div>
-              <h3 className="font-semibold text-gray-900 mb-2">Implement Strategies</h3>
-              <p className="text-gray-600 text-sm">Apply the specific strategies and techniques learned in your classroom practice</p>
+              <h3 className="font-semibold text-gray-900 mb-3">Implement Strategies</h3>
+              <p className="text-gray-700 text-sm">Apply the specific strategies and techniques learned in your classroom practice</p>
             </div>
-            <div className="text-center p-6 bg-green-50 rounded-lg">
-              <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white font-bold">2</span>
+            <div className="text-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200">
+              <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-white font-bold text-lg">2</span>
               </div>
-              <h3 className="font-semibold text-gray-900 mb-2">Document Outcomes</h3>
-              <p className="text-gray-600 text-sm">Keep track of implementation attempts and student outcomes</p>
+              <h3 className="font-semibold text-gray-900 mb-3">Document Outcomes</h3>
+              <p className="text-gray-700 text-sm">Keep track of implementation attempts and student learning outcomes</p>
             </div>
-            <div className="text-center p-6 bg-purple-50 rounded-lg">
-              <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white font-bold">3</span>
+            <div className="text-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200">
+              <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-white font-bold text-lg">3</span>
               </div>
-              <h3 className="font-semibold text-gray-900 mb-2">Share & Reflect</h3>
-              <p className="text-gray-600 text-sm">Share learnings with colleagues and reflect on professional growth</p>
+              <h3 className="font-semibold text-gray-900 mb-3">Share & Reflect</h3>
+              <p className="text-gray-700 text-sm">Share learnings with colleagues and reflect on your professional growth</p>
             </div>
           </div>
         </div>

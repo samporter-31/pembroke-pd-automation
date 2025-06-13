@@ -6,37 +6,6 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 })
 
-interface FrameworkAnalysis {
-  aitsl_analysis?: {
-    standards_addressed: Array<{
-      standard: string
-      evidence: string
-      growth_demonstrated: string
-      implementation_opportunities: string
-    }>
-    overall_compliance: string
-  }
-  quality_teaching?: {
-    intellectual_quality: string
-    learning_environment: string
-    significance: string
-  }
-  visible_thinking?: {
-    routines_identified: string[]
-    implementation_strategies: string
-  }
-  pembroke_pedagogies?: {
-    alignment: string
-    integration_opportunities: string
-  }
-  modern_classrooms?: {
-    alignment: string
-    integration_opportunities: string
-  }
-  key_insights: string[]
-  recommendations: string[]
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -156,7 +125,7 @@ async function generateFrameworkAnalysis(
   generalNotes: string,
   responses: Record<string, string>,
   selectedFrameworks: Record<string, boolean>
-): Promise<FrameworkAnalysis> {
+): Promise<any> {
   
   // Combine all notes into one text for analysis
   const allNotes = [
@@ -309,7 +278,7 @@ async function generateFrameworkAnalysis(
     console.error('OpenAI analysis error:', error)
     
     // Return a fallback analysis structure
-    const fallbackAnalysis: FrameworkAnalysis = {
+    const fallbackAnalysis: any = {
       key_insights: ["Analysis could not be completed at this time"],
       recommendations: ["Please try regenerating the report"]
     }

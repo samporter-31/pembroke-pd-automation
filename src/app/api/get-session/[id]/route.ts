@@ -3,10 +3,11 @@ import { supabase } from '@/lib/supabase'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const sessionId = params.id
+    // Await params in Next.js 15
+    const { id: sessionId } = await params
 
     // Input validation
     if (!sessionId) {
@@ -16,30 +17,22 @@ export async function GET(
       )
     }
 
-    // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    if (!uuidRegex.test(sessionId)) {
-      return NextResponse.json(
-        { error: 'Invalid session ID format' },
-        { status: 400 }
-      )
-    }
-
     console.log('Fetching session data for:', sessionId)
 
     // Fetch session with related agenda data
+    // Note: only querying columns that exist in your database
     const { data: sessionData, error: sessionError } = await supabase
       .from('sessions')
       .select(`
         id,
         participant_name,
-        form_structure,
         notes,
         created_at,
-        agendas (
+        agendas!inner (
           id,
           title,
           content,
+          form_structure,
           created_at
         )
       `)
@@ -69,13 +62,15 @@ export async function GET(
       )
     }
 
-    // Return the session data
+    console.log('Session data retrieved successfully')
+
+    // Return the session data with form_structure from agendas
     return NextResponse.json({
       success: true,
       session: {
         id: sessionData.id,
         participant_name: sessionData.participant_name,
-        form_structure: sessionData.form_structure,
+        form_structure: sessionData.agendas.form_structure, // Get from agendas table
         notes: sessionData.notes,
         created_at: sessionData.created_at,
         agendas: sessionData.agendas

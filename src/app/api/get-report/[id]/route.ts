@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
-// This is a dynamic API route in Next.js App Router
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Input validation - security best practice
-    const sessionId = params.id
+    // Await params in Next.js 15
+    const { id: sessionId } = await params
 
+    // Input validation
     if (!sessionId) {
       return NextResponse.json(
         { error: 'Session ID is required' },
@@ -17,19 +17,9 @@ export async function GET(
       )
     }
 
-    // Validate that sessionId is a valid UUID format (basic security)
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    if (!uuidRegex.test(sessionId)) {
-      return NextResponse.json(
-        { error: 'Invalid session ID format' },
-        { status: 400 }
-      )
-    }
-
     console.log('Fetching report for session:', sessionId)
 
-    // Use Supabase RLS (Row Level Security) for data protection
-    // This query uses joins to get related data in one call
+    // Fetch session data with related agenda and report
     const { data: sessionData, error: sessionError } = await supabase
       .from('sessions')
       .select(`
@@ -37,7 +27,7 @@ export async function GET(
         participant_name,
         created_at,
         notes,
-        agendas (
+        agendas!inner (
           id,
           title,
           content,
@@ -46,20 +36,19 @@ export async function GET(
         reports (
           id,
           framework_analysis,
+          selected_frameworks,
           created_at
         )
       `)
       .eq('id', sessionId)
       .single()
 
-    // Handle database errors
     if (sessionError) {
       console.error('Database error:', sessionError)
       
-      // Don't expose internal database errors to clients
       if (sessionError.code === 'PGRST116') {
         return NextResponse.json(
-          { error: 'Report not found' },
+          { error: 'Session not found' },
           { status: 404 }
         )
       }
@@ -77,20 +66,21 @@ export async function GET(
       )
     }
 
-    // Check if report exists
+    // Get the report data
     const report = sessionData.reports?.[0]
     if (!report) {
       return NextResponse.json(
         { 
           error: 'Report not yet generated',
-          message: 'Please wait while your report is being analyzed'
+          message: 'Please complete your session notes first, then your report will be generated automatically.'
         },
         { status: 404 }
       )
     }
 
-    // Structure the response data
-    const responseData = {
+    console.log('Report data found')
+
+    return NextResponse.json({
       success: true,
       session: {
         id: sessionData.id,
@@ -102,15 +92,11 @@ export async function GET(
       report: {
         id: report.id,
         framework_analysis: report.framework_analysis,
+        selected_frameworks: report.selected_frameworks,
         created_at: report.created_at
       },
       analysis: report.framework_analysis
-    }
-
-    console.log('Report data successfully retrieved')
-
-    // Return success response with proper headers
-    return NextResponse.json(responseData, {
+    }, {
       status: 200,
       headers: {
         'Cache-Control': 'private, no-cache, no-store, must-revalidate',
@@ -121,7 +107,6 @@ export async function GET(
   } catch (error) {
     console.error('Unexpected error in get-report API:', error)
     
-    // Don't expose internal errors to clients
     return NextResponse.json(
       { 
         error: 'Internal server error',
@@ -130,26 +115,4 @@ export async function GET(
       { status: 500 }
     )
   }
-}
-
-// Optional: Add other HTTP methods if needed
-export async function POST() {
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 }
-  )
-}
-
-export async function PUT() {
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 }
-  )
-}
-
-export async function DELETE() {
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 }
-  )
 }
