@@ -2,11 +2,12 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileText, Upload, Edit3, Brain, Target, BookOpen, School, Lightbulb, CheckCircle, AlertCircle, X } from 'lucide-react'
+import { FileText, Upload, Edit3, Brain, Target, BookOpen, School, Lightbulb, CheckCircle, AlertCircle, X, User } from 'lucide-react'
 
 export default function Home() {
   const [agenda, setAgenda] = useState('')
   const [title, setTitle] = useState('')
+  const [participantName, setParticipantName] = useState('')
   const [pdfLoading, setPdfLoading] = useState(false)
   const [formLoading, setFormLoading] = useState(false)
   const [uploadMethod, setUploadMethod] = useState<'text' | 'pdf'>('pdf')
@@ -38,9 +39,10 @@ export default function Home() {
 
   const getProgressPercentage = () => {
     if (currentStep === 1) return 0
-    if (currentStep === 2 && title.trim()) return 25
-    if (currentStep === 3 && agenda.trim()) return 75
-    if (formLoading) return 90
+    if (currentStep === 2 && participantName.trim()) return 20
+    if (currentStep === 3 && title.trim()) return 40
+    if (currentStep === 4 && agenda.trim()) return 80
+    if (formLoading) return 95
     return 100
   }
 
@@ -48,7 +50,7 @@ export default function Home() {
     setPdfLoading(true)
     setFileName(file.name)
     setNotification(null)
-    setCurrentStep(3)
+    setCurrentStep(4)
     
     try {
       const formData = new FormData()
@@ -111,28 +113,56 @@ export default function Home() {
     e.preventDefault()
     setFormLoading(true)
     setNotification(null)
-    setCurrentStep(4)
+    setCurrentStep(5)
     
     try {
-      const response = await fetch('/api/generate-form', {
+      console.log('Starting form submission flow...')
+      
+      // Step 1: Generate the form/agenda
+      console.log('Step 1: Generating form...')
+      const formResponse = await fetch('/api/generate-form', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agenda, title })
       })
       
-      const data = await response.json()
+      const formData = await formResponse.json()
+      console.log('Form generation response:', formData)
       
-      if (data.success) {
-        console.log('Navigating to:', `/session/${data.agendaId}`)
-        router.push(`/session/${data.agendaId}`)
-      } else {
-        setFormLoading(false)
-        setCurrentStep(3)
-        showNotification('error', 'Error generating form: ' + data.error)
+      if (!formData.success) {
+        throw new Error('Error generating form: ' + formData.error)
       }
+
+      // Step 2: Create a session for this participant
+      console.log('Step 2: Creating session for agenda:', formData.agendaId)
+      const sessionResponse = await fetch('/api/create-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          agenda_id: formData.agendaId,
+          participant_name: participantName 
+        })
+      })
+      
+      const sessionData = await sessionResponse.json()
+      console.log('Session creation response:', sessionData)
+      
+      if (!sessionData.success) {
+        throw new Error('Error creating session: ' + sessionData.error)
+      }
+
+      // Step 3: Navigate to the session page
+      console.log('Step 3: Navigating to session:', sessionData.session_id)
+      showNotification('success', 'Session created successfully! Redirecting...')
+      
+      // Add small delay to show success message
+      setTimeout(() => {
+        router.push(`/session/${sessionData.session_id}`)
+      }, 1000)
+      
     } catch (error) {
       setFormLoading(false)
-      setCurrentStep(3)
+      setCurrentStep(4)
       console.error('Submit error:', error)
       showNotification('error', 'Error: ' + String(error))
     }
@@ -252,12 +282,12 @@ export default function Home() {
                 Create Your Professional Learning Session
               </h2>
               <p className="text-gray-600">
-                Get started by providing your session details and agenda content
+                Get started by providing your details and session agenda content
               </p>
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-8">
-              {/* Step 1: Session Title */}
+              {/* Step 1: Participant Name */}
               <div className="space-y-4">
                 <div className="flex items-center space-x-3">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -265,36 +295,71 @@ export default function Home() {
                   }`}>
                     1
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900">Session Information</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Participant Information</h3>
                 </div>
                 
                 <div className="ml-11">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Session Title *
+                    Your Name *
                   </label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => {
-                      setTitle(e.target.value)
-                      if (e.target.value.trim() && currentStep === 1) setCurrentStep(2)
-                    }}
-                    placeholder="e.g., Mathematics Pedagogy Workshop, Literacy Strategies PD"
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    required
-                  />
-                  <p className="mt-1 text-xs text-gray-500">Give your professional learning session a descriptive title</p>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      value={participantName}
+                      onChange={(e) => {
+                        setParticipantName(e.target.value)
+                        if (e.target.value.trim() && currentStep === 1) setCurrentStep(2)
+                      }}
+                      placeholder="e.g., Sarah Johnson"
+                      className="w-full rounded-lg border border-gray-300 pl-10 pr-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      required
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">This will appear on your professional learning report</p>
                 </div>
               </div>
 
-              {/* Step 2: Upload Method Selection */}
-              {title.trim() && (
+              {/* Step 2: Session Title */}
+              {participantName.trim() && (
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                       currentStep >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
                     }`}>
                       2
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">Session Information</h3>
+                  </div>
+                  
+                  <div className="ml-11">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Session Title *
+                    </label>
+                    <input
+                      type="text"
+                      value={title}
+                      onChange={(e) => {
+                        setTitle(e.target.value)
+                        if (e.target.value.trim() && currentStep === 2) setCurrentStep(3)
+                      }}
+                      placeholder="e.g., Mathematics Pedagogy Workshop, Literacy Strategies PD"
+                      className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      required
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Give your professional learning session a descriptive title</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Upload Method Selection */}
+              {title.trim() && participantName.trim() && (
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                      currentStep >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                    }`}>
+                      3
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900">Provide Agenda Content</h3>
                   </div>
@@ -333,14 +398,14 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Step 3: Content Input */}
-              {title.trim() && (
+              {/* Step 4: Content Input */}
+              {title.trim() && participantName.trim() && (
                 <div className="space-y-4">
                   <div className="flex items-center space-x-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                      currentStep >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                      currentStep >= 4 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
                     }`}>
-                      3
+                      4
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900">
                       {uploadMethod === 'pdf' ? 'Upload PDF Document' : 'Enter Agenda Text'}
@@ -454,26 +519,26 @@ export default function Home() {
               )}
               
               {/* Submit Button */}
-              {agenda.trim() && title.trim() && (
+              {agenda.trim() && title.trim() && participantName.trim() && (
                 <div className="bg-gray-50 -mx-8 -mb-8 px-8 py-6 mt-8">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="text-sm text-gray-600">
-                      <p className="font-medium">Ready to create your note-taking form?</p>
-                      <p>AI will generate personalized questions based on your agenda content.</p>
+                      <p className="font-medium">Ready to create your note-taking session?</p>
+                      <p>AI will generate personalized questions and create your session.</p>
                     </div>
                     <button
                       type="submit"
-                      disabled={formLoading || pdfLoading || !agenda.trim() || !title.trim()}
+                      disabled={formLoading || pdfLoading || !agenda.trim() || !title.trim() || !participantName.trim()}
                       className="inline-flex items-center px-8 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
                     >
                       {formLoading ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-3"></div>
-                          Creating Questions...
+                          Creating Session...
                         </>
                       ) : (
                         <>
-                          Generate Note-Taking Form
+                          Start Learning Session
                           <span className="ml-2">→</span>
                         </>
                       )}

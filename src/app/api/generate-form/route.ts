@@ -14,10 +14,11 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Generating form for:', title)
+    console.log('Agenda preview:', agenda.substring(0, 200) + '...')
 
     // Generate form structure using OpenAI with enhanced prompt
     const response = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
+      model: "gpt-4.1-mini", // ✅ FIXED: Using correct model name
       messages: [{
         role: "user",
         content: `You are an expert in professional development for educators. Create a HIGHLY SPECIFIC note-taking form based on this exact PD agenda content.
@@ -65,11 +66,12 @@ Focus on creating questions that help teachers capture:
 
 Make every question highly relevant to the actual agenda content provided.`
       }],
-      max_tokens: 1200
+      max_tokens: 3000
     })
 
     let rawResponse = response.choices[0].message.content || '{}'
-    console.log('OpenAI raw response:', rawResponse)
+    console.log('OpenAI raw response length:', rawResponse.length)
+    console.log('OpenAI raw response preview:', rawResponse.substring(0, 300))
 
     // Clean up markdown formatting if present
     rawResponse = rawResponse
@@ -77,14 +79,15 @@ Make every question highly relevant to the actual agenda content provided.`
       .replace(/```\n?/g, '')      // Remove closing ```
       .trim()
 
-    console.log('Cleaned response:', rawResponse)
+    console.log('Cleaned response preview:', rawResponse.substring(0, 300))
 
     let formStructure
     try {
       formStructure = JSON.parse(rawResponse)
+      console.log('Successfully parsed JSON. Sections count:', formStructure.sections?.length || 0)
     } catch (parseError) {
       console.error('JSON parse error:', parseError)
-      console.error('Cleaned response was:', rawResponse)
+      console.error('Full cleaned response:', rawResponse)
       
       // Enhanced fallback form structure based on agenda content
       const agendaLower = agenda.toLowerCase()
@@ -179,9 +182,10 @@ Make every question highly relevant to the actual agenda content provided.`
       }
 
       formStructure = { sections: fallbackSections }
+      console.log('Using fallback form structure with', fallbackSections.length, 'sections')
     }
 
-    console.log('Final form structure:', formStructure)
+    console.log('Final form structure sections:', formStructure.sections?.length || 0)
 
     // Save agenda AND form structure to database
     const { data: agendaData, error: agendaError } = await supabase
@@ -218,4 +222,3 @@ Make every question highly relevant to the actual agenda content provided.`
     )
   }
 }
-

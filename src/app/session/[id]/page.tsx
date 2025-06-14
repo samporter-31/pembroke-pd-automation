@@ -4,11 +4,17 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Loader2, AlertCircle, CheckCircle, BookOpen, Brain, Target, School, Lightbulb, X, FileText, Send, ArrowLeft } from 'lucide-react'
 
-interface FormQuestion {
+interface FormField {
   id: string
-  question: string
+  label: string
   type: string
-  required: boolean
+  placeholder?: string
+}
+
+interface FormSection {
+  title: string
+  description: string
+  fields: FormField[]
 }
 
 interface SessionData {
@@ -19,7 +25,7 @@ interface SessionData {
     content: string
   }
   form_structure: {
-    questions: FormQuestion[]
+    sections: FormSection[]
   }
 }
 
@@ -158,10 +164,10 @@ export default function SessionPage() {
     }))
   }
 
-  const handleResponseChange = (questionId: string, value: string) => {
+  const handleResponseChange = (fieldId: string, value: string) => {
     setResponses(prev => ({
       ...prev,
-      [questionId]: value
+      [fieldId]: value
     }))
   }
 
@@ -255,11 +261,13 @@ export default function SessionPage() {
 
   if (!sessionData) return null
 
+  // Flatten all fields from all sections for progress calculation
+  const allFields = sessionData.form_structure?.sections?.flatMap(section => section.fields) || []
+  const totalFields = 1 + allFields.length // General notes + all section fields
+  const completedFields = (generalNotes.trim() ? 1 : 0) + 
+    Object.values(responses).filter(response => response.trim()).length
+
   const getProgressPercentage = () => {
-    const totalFields = 1 + (sessionData.form_structure?.questions?.length || 0) // General notes + questions
-    const completedFields = (generalNotes.trim() ? 1 : 0) + 
-      Object.values(responses).filter(response => response.trim()).length
-    
     return Math.round((completedFields / totalFields) * 100)
   }
 
@@ -423,44 +431,42 @@ export default function SessionPage() {
             </div>
           </div>
 
-          {/* AI-Generated Questions */}
-          {sessionData.form_structure?.questions?.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+          {/* AI-Generated Questions by Section */}
+          {sessionData.form_structure?.sections?.map((section, sectionIndex) => (
+            <div key={sectionIndex} className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
               <div className="flex items-center space-x-3 mb-6">
                 <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">3</span>
+                  <span className="text-white font-bold text-sm">{sectionIndex + 3}</span>
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Session-Specific Questions</h2>
-                  <p className="text-gray-600 text-sm">AI-generated questions based on your agenda content</p>
+                  <h2 className="text-xl font-bold text-gray-900">{section.title}</h2>
+                  <p className="text-gray-600 text-sm">{section.description}</p>
                 </div>
               </div>
               
               <div className="space-y-6">
-                {sessionData.form_structure.questions.map((question, index) => (
-                  <div key={question.id} className="border-l-4 border-blue-500 pl-6 bg-blue-50/30 py-4 rounded-r-lg">
+                {section.fields.map((field, fieldIndex) => (
+                  <div key={field.id} className="border-l-4 border-blue-500 pl-6 bg-blue-50/30 py-4 rounded-r-lg">
                     <label className="block font-medium text-gray-900 mb-3">
                       <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-600 text-white text-xs font-bold rounded-full mr-2">
-                        {index + 1}
+                        {fieldIndex + 1}
                       </span>
-                      {question.question}
-                      {question.required && <span className="text-red-500 ml-1">*</span>}
+                      {field.label}
                     </label>
                     <textarea
-                      value={responses[question.id] || ''}
-                      onChange={(e) => handleResponseChange(question.id, e.target.value)}
-                      placeholder="Share your thoughts, examples, or reflections..."
+                      value={responses[field.id] || ''}
+                      onChange={(e) => handleResponseChange(field.id, e.target.value)}
+                      placeholder={field.placeholder || "Share your thoughts, examples, or reflections..."}
                       className="w-full h-24 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical transition-colors"
-                      required={question.required}
                     />
                     <div className="mt-1 text-xs text-gray-500">
-                      {(responses[question.id] || '').length} characters
+                      {(responses[field.id] || '').length} characters
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-          )}
+          ))}
 
           {/* Error Display */}
           {error && (

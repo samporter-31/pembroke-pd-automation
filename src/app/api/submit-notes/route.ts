@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Save notes to session
+    // Save notes to session (FIXED: removed updated_at)
     const { error: updateError } = await supabase
       .from('sessions')
       .update({
@@ -64,8 +64,8 @@ export async function POST(request: NextRequest) {
           general_notes,
           responses,
           selected_frameworks
-        },
-        updated_at: new Date().toISOString()
+        }
+        // Removed updated_at since column doesn't exist
       })
       .eq('id', session_id)
 
@@ -254,7 +254,7 @@ async function generateFrameworkAnalysis(
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-mini",
       messages: [
         {
           role: "system",
@@ -262,7 +262,7 @@ async function generateFrameworkAnalysis(
         }
       ],
       temperature: 0.7,
-      max_tokens: 2000
+      max_tokens: 2500  // Increased for longer responses
     })
 
     const analysisText = completion.choices[0].message.content
@@ -270,8 +270,16 @@ async function generateFrameworkAnalysis(
       throw new Error('No analysis generated')
     }
 
+    // Clean up the response to remove markdown formatting
+    const cleanedText = analysisText
+      .replace(/```json\s*/g, '')  // Remove ```json
+      .replace(/```\s*/g, '')      // Remove closing ```
+      .trim()
+
+    console.log('Analysis generated successfully')
+
     // Parse the JSON response
-    const analysis = JSON.parse(analysisText)
+    const analysis = JSON.parse(cleanedText)
     return analysis
 
   } catch (error) {

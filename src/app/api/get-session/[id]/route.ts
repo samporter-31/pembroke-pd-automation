@@ -19,8 +19,7 @@ export async function GET(
 
     console.log('Fetching session data for:', sessionId)
 
-    // Fetch session with related agenda data
-    // Note: only querying columns that exist in your database
+    // Clean query - fixed without updated_at column
     const { data: sessionData, error: sessionError } = await supabase
       .from('sessions')
       .select(`
@@ -28,7 +27,8 @@ export async function GET(
         participant_name,
         notes,
         created_at,
-        agendas!inner (
+        agenda_id,
+        agendas (
           id,
           title,
           content,
@@ -56,30 +56,28 @@ export async function GET(
     }
 
     if (!sessionData) {
+      console.log('No session data found for ID:', sessionId)
       return NextResponse.json(
         { error: 'Session not found' },
         { status: 404 }
       )
     }
 
-    console.log('Session data retrieved successfully')
+    console.log('✅ Session data retrieved successfully')
+    console.log('Participant:', sessionData.participant_name)
+    console.log('Agenda title:', sessionData.agendas.title)
+    console.log('Form sections:', sessionData.agendas.form_structure?.sections?.length || 0)
 
-    // Return the session data with form_structure from agendas
+    // Return clean session data
     return NextResponse.json({
       success: true,
       session: {
         id: sessionData.id,
         participant_name: sessionData.participant_name,
-        form_structure: sessionData.agendas.form_structure, // Get from agendas table
+        form_structure: sessionData.agendas.form_structure,
         notes: sessionData.notes,
         created_at: sessionData.created_at,
         agendas: sessionData.agendas
-      }
-    }, {
-      status: 200,
-      headers: {
-        'Cache-Control': 'private, no-cache, no-store, must-revalidate',
-        'Content-Type': 'application/json'
       }
     })
 
@@ -96,24 +94,15 @@ export async function GET(
   }
 }
 
-// Handle other HTTP methods
+// Clean method handling
 export async function POST() {
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 }
-  )
+  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 })
 }
 
 export async function PUT() {
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 }
-  )
+  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 })
 }
 
 export async function DELETE() {
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 }
-  )
+  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 })
 }
