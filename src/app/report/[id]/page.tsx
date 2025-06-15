@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Loader2, AlertCircle, FileText, Download, Home, Target, BookOpen, Brain, School, Lightbulb, CheckCircle, TrendingUp, X } from 'lucide-react'
+import { Loader2, AlertCircle, FileText, Download, Home, Target, BookOpen, Brain, School, Lightbulb, CheckCircle, TrendingUp, X, ArrowLeft, Share2, Star } from 'lucide-react'
 
 // Type definitions
 interface AITSLStandard {
@@ -71,19 +71,6 @@ export default function ReportPage() {
     setTimeout(() => setNotification(null), 3000)
   }
 
-  const getNotificationStyle = (type: string) => {
-    switch (type) {
-      case 'success':
-        return 'bg-white border-l-4 border-l-green-500 text-gray-900 shadow-sm'
-      case 'error':  
-        return 'bg-white border-l-4 border-l-red-500 text-gray-900 shadow-sm'
-      case 'info':
-        return 'bg-white border-l-4 border-l-blue-500 text-gray-900 shadow-sm'
-      default:
-        return 'bg-white border-l-4 border-l-gray-500 text-gray-900 shadow-sm'
-    }
-  }
-
   useEffect(() => {
     if (params.id) {
       fetchReport()
@@ -95,21 +82,10 @@ export default function ReportPage() {
       setLoading(true)
       setError(null)
       
-      const response = await fetch(`/api/get-report/${params.id}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
+      const response = await fetch(`/api/get-report/${params.id}`)
       
       if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('Report not found')
-        } else if (response.status === 500) {
-          throw new Error('Server error - please try again later')
-        } else {
-          throw new Error('Failed to load report')
-        }
+        throw new Error('Report not found')
       }
       
       const data = await response.json()
@@ -124,12 +100,11 @@ export default function ReportPage() {
   }
 
   const handleExport = async () => {
-    try {
-      showNotification('info', 'Export functionality coming soon!')
-    } catch (error) {
-      console.error('Export error:', error)
-      showNotification('error', 'Export failed')
-    }
+    showNotification('info', 'Export feature coming soon!')
+  }
+
+  const handleShare = async () => {
+    showNotification('info', 'Share feature coming soon!')
   }
 
   // Loading state
@@ -140,7 +115,7 @@ export default function ReportPage() {
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Your Report</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Generating Report</h2>
           <p className="text-gray-600">Analyzing your professional learning...</p>
         </div>
       </div>
@@ -151,7 +126,7 @@ export default function ReportPage() {
   if (error || !reportData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md">
+        <div className="text-center bg-white rounded-2xl p-8 shadow-sm max-w-md">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-8 h-8 text-red-600" />
           </div>
@@ -159,7 +134,7 @@ export default function ReportPage() {
           <p className="text-gray-600 mb-6">{error}</p>
           <button
             onClick={() => router.push('/')}
-            className="inline-flex items-center bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            className="btn-primary inline-flex items-center"
           >
             <Home className="w-4 h-4 mr-2" />
             Create New Session
@@ -172,435 +147,358 @@ export default function ReportPage() {
   const { session, agenda, analysis } = reportData
 
   const tabs = [
-    { id: 'overview', name: 'Overview', icon: <FileText className="w-4 h-4" /> },
-    { id: 'aitsl', name: 'AITSL Standards', icon: <Target className="w-4 h-4" />, available: !!analysis.aitsl_analysis },
+    { id: 'overview', name: 'Overview', icon: <FileText className="w-4 h-4" />, available: true },
+    { id: 'aitsl', name: 'AITSL', icon: <Target className="w-4 h-4" />, available: !!analysis.aitsl_analysis },
     { id: 'quality', name: 'Quality Teaching', icon: <BookOpen className="w-4 h-4" />, available: !!analysis.quality_teaching },
     { id: 'thinking', name: 'Visible Thinking', icon: <Brain className="w-4 h-4" />, available: !!analysis.visible_thinking },
-    { id: 'pembroke', name: 'Pembroke Pedagogies', icon: <School className="w-4 h-4" />, available: !!analysis.pembroke_pedagogies },
-    { id: 'modern', name: 'Modern Classrooms', icon: <Lightbulb className="w-4 h-4" />, available: !!analysis.modern_classrooms },
-    { id: 'insights', name: 'Key Insights', icon: <TrendingUp className="w-4 h-4" /> }
+    { id: 'pembroke', name: 'Pembroke', icon: <School className="w-4 h-4" />, available: !!analysis.pembroke_pedagogies },
+    { id: 'modern', name: 'Modern', icon: <Lightbulb className="w-4 h-4" />, available: !!analysis.modern_classrooms },
+    { id: 'insights', name: 'Insights', icon: <TrendingUp className="w-4 h-4" />, available: true }
   ]
+
+  const availableTabs = tabs.filter(tab => tab.available)
 
   return (
     <main className="min-h-screen bg-gray-50">
-      {/* Header Section */}
-      <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white">
-        <div className="max-w-7xl mx-auto px-4 py-12">
-          <div className="flex items-center justify-between mb-6">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
             <button
               onClick={() => router.push('/')}
-              className="inline-flex items-center text-blue-100 hover:text-white transition-colors"
+              className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
             >
-              <Home className="w-4 h-4 mr-2" />
-              New Session
+              <ArrowLeft className="w-5 h-5 mr-2" />
+              Back
             </button>
-            <button
-              onClick={handleExport}
-              className="inline-flex items-center bg-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/20"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Export PDF
-            </button>
-          </div>
-          
-          <div className="text-center">
-            <h1 className="text-3xl md:text-4xl font-bold mb-4">
+            <h1 className="text-lg font-bold text-gray-900">
               Professional Learning Report
             </h1>
-            <div className="text-lg text-blue-100 mb-6 space-y-1">
-              <p><span className="font-medium">Participant:</span> {session.participant_name}</p>
-              <p><span className="font-medium">Session:</span> {agenda.title}</p>
-              <p><span className="font-medium">Date:</span> {new Date(session.created_at).toLocaleDateString()}</p>
-            </div>
-            
-            {/* Report Status */}
-            <div className="inline-flex items-center px-4 py-2 bg-green-500/20 text-green-100 rounded-full border border-green-400/30">
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Analysis Complete
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleShare}
+                className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <Share2 className="w-4 h-4 text-gray-600" />
+              </button>
+              <button
+                onClick={handleExport}
+                className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <Download className="w-4 h-4 text-gray-600" />
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Notification */}
-        {notification && (
-          <div className={`mb-6 p-4 rounded-lg ${getNotificationStyle(notification.type)}`}>
-            <div className="flex items-start">
-              <div className="flex-shrink-0 mr-3">
-                {notification.type === 'success' && <CheckCircle className="h-5 w-5 text-green-500" />}
-                {notification.type === 'error' && <AlertCircle className="h-5 w-5 text-red-500" />}
-                {notification.type === 'info' && <AlertCircle className="h-5 w-5 text-blue-500" />}
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">{notification.message}</p>
-              </div>
-              <button
-                onClick={() => setNotification(null)}
-                className="flex-shrink-0 ml-4 text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+      {/* Report Header */}
+      <div className="bg-white border-b border-gray-200 py-6">
+        <div className="max-w-6xl mx-auto px-4 text-center">
+          <div className="inline-flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-full mb-4">
+            <CheckCircle className="w-4 h-4 mr-2" />
+            Analysis Complete
           </div>
-        )}
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {agenda.title}
+          </h2>
+          <div className="text-gray-600 text-sm space-y-1">
+            <p>{session.participant_name} • {new Date(session.created_at).toLocaleDateString()}</p>
+          </div>
+        </div>
+      </div>
 
-        {/* Executive Summary */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
-          <div className="flex items-start">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-              <FileText className="w-6 h-6 text-blue-600" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">Executive Summary</h2>
-              <p className="text-gray-700 mb-4">
-                This report analyzes your professional learning engagement against selected educational frameworks, 
-                providing evidence of professional growth and actionable recommendations for continued development.
-              </p>
-              <div className="grid md:grid-cols-3 gap-4 mt-6">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">{analysis.key_insights?.length || 0}</div>
-                  <div className="text-sm text-blue-800">Key Insights</div>
-                </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">{analysis.recommendations?.length || 0}</div>
-                  <div className="text-sm text-green-800">Recommendations</div>
-                </div>
-                <div className="bg-purple-50 p-4 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {tabs.filter(tab => tab.available && tab.id !== 'overview' && tab.id !== 'insights').length}
-                  </div>
-                  <div className="text-sm text-purple-800">Frameworks Analyzed</div>
-                </div>
-              </div>
-            </div>
+      {/* Notification */}
+      {notification && (
+        <div className="fixed top-4 right-4 left-4 md:left-auto md:w-96 z-50 animate-slide-up">
+          <div className={`p-4 rounded-xl shadow-lg flex items-start ${
+            notification.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
+            notification.type === 'error' ? 'bg-red-50 text-red-800 border border-red-200' :
+            'bg-blue-50 text-blue-800 border border-blue-200'
+          }`}>
+            <div className="flex-1">{notification.message}</div>
+            <button onClick={() => setNotification(null)} className="ml-2">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Quick Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="bg-blue-100 rounded-2xl p-4 text-center animate-slide-up">
+            <div className="text-2xl font-bold text-blue-900">{analysis.key_insights?.length || 0}</div>
+            <div className="text-sm text-blue-700">Key Insights</div>
+          </div>
+          <div className="bg-green-100 rounded-2xl p-4 text-center animate-slide-up" style={{animationDelay: '0.1s'}}>
+            <div className="text-2xl font-bold text-green-900">{analysis.recommendations?.length || 0}</div>
+            <div className="text-sm text-green-700">Actions</div>
+          </div>
+          <div className="bg-purple-100 rounded-2xl p-4 text-center animate-slide-up" style={{animationDelay: '0.2s'}}>
+            <div className="text-2xl font-bold text-purple-900">{availableTabs.length - 2}</div>
+            <div className="text-sm text-purple-700">Frameworks</div>
           </div>
         </div>
 
-        {/* Framework Analysis Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          {/* Tab Navigation */}
-          <div className="border-b border-gray-200 overflow-x-auto">
-            <nav className="flex min-w-max">
-              {tabs.map((tab) => (
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-6 animate-slide-up" style={{animationDelay: '0.3s'}}>
+          <div className="overflow-x-auto">
+            <div className="flex min-w-max">
+              {availableTabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  disabled={tab.available === false}
-                  className={`flex items-center flex-shrink-0 px-6 py-4 font-medium text-sm border-b-2 transition-colors ${
+                  className={`flex items-center px-4 py-3 font-medium text-sm whitespace-nowrap transition-all ${
                     activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600 bg-blue-50'
-                      : tab.available === false
-                      ? 'border-transparent text-gray-400 cursor-not-allowed'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
                   {tab.icon}
                   <span className="ml-2">{tab.name}</span>
-                  {tab.available === false && (
-                    <span className="ml-2 text-xs bg-gray-200 text-gray-500 px-2 py-0.5 rounded">N/A</span>
-                  )}
                 </button>
               ))}
-            </nav>
-          </div>
-
-          {/* Tab Content */}
-          <div className="p-8">
-            {/* Overview Tab */}
-            {activeTab === 'overview' && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Professional Learning Analysis Overview</h2>
-                
-                {/* Framework Coverage */}
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
-                    <h3 className="text-lg font-semibold text-blue-900 mb-3">Frameworks Analyzed</h3>
-                    <div className="space-y-2">
-                      {tabs.filter(tab => tab.available && tab.id !== 'overview' && tab.id !== 'insights').map((tab) => (
-                        <div key={tab.id} className="flex items-center text-blue-800">
-                          <CheckCircle className="w-4 h-4 mr-2 text-blue-600" />
-                          {tab.name}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="bg-green-50 rounded-lg p-6 border border-green-200">
-                    <h3 className="text-lg font-semibold text-green-900 mb-3">Learning Outcomes</h3>
-                    <div className="space-y-2 text-green-800">
-                      <div>✓ Professional standards alignment identified</div>
-                      <div>✓ Growth opportunities mapped</div>
-                      <div>✓ Implementation strategies provided</div>
-                      <div>✓ Next steps recommended</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* AITSL Standards Tab */}
-            {activeTab === 'aitsl' && analysis.aitsl_analysis && (
-              <div className="space-y-6">
-                <div className="flex items-center space-x-3 mb-6">
-                  <Target className="w-8 h-8 text-blue-600" />
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">AITSL Professional Standards Analysis</h2>
-                    <p className="text-gray-600">Australian Professional Standards for Teachers</p>
-                  </div>
-                </div>
-                
-                {analysis.aitsl_analysis.overall_compliance && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                    <h3 className="font-semibold text-green-900 mb-2">Overall Compliance Assessment</h3>
-                    <p className="text-green-800">{analysis.aitsl_analysis.overall_compliance}</p>
-                  </div>
-                )}
-
-                <div className="space-y-6">
-                  {analysis.aitsl_analysis.standards_addressed?.length > 0 ? (
-                    analysis.aitsl_analysis.standards_addressed.map((standard, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-6 bg-gray-50">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                          <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">
-                            {index + 1}
-                          </span>
-                          {standard.standard}
-                        </h3>
-                        <div className="grid gap-4 md:grid-cols-3">
-                          <div className="bg-white p-4 rounded-lg border">
-                            <h4 className="font-medium text-gray-700 mb-2">Evidence</h4>
-                            <p className="text-gray-600 text-sm">{standard.evidence}</p>
-                          </div>
-                          <div className="bg-white p-4 rounded-lg border">
-                            <h4 className="font-medium text-gray-700 mb-2">Growth Demonstrated</h4>
-                            <p className="text-gray-600 text-sm">{standard.growth_demonstrated}</p>
-                          </div>
-                          <div className="bg-white p-4 rounded-lg border">
-                            <h4 className="font-medium text-gray-700 mb-2">Implementation Opportunities</h4>
-                            <p className="text-gray-600 text-sm">{standard.implementation_opportunities}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <Target className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                      <p>No AITSL standards analysis available</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Quality Teaching Tab */}
-            {activeTab === 'quality' && analysis.quality_teaching && (
-              <div className="space-y-6">
-                <div className="flex items-center space-x-3 mb-6">
-                  <BookOpen className="w-8 h-8 text-green-600" />
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Quality Teaching Model Analysis</h2>
-                    <p className="text-gray-600">Three dimensions of quality teaching</p>
-                  </div>
-                </div>
-                
-                <div className="grid gap-6">
-                  <div className="border border-gray-200 rounded-lg p-6 bg-green-50">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                      <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-                      Intellectual Quality
-                    </h3>
-                    <p className="text-gray-700">{analysis.quality_teaching.intellectual_quality || 'No analysis available'}</p>
-                  </div>
-                  <div className="border border-gray-200 rounded-lg p-6 bg-blue-50">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full mr-3"></div>
-                      Quality Learning Environment
-                    </h3>
-                    <p className="text-gray-700">{analysis.quality_teaching.learning_environment || 'No analysis available'}</p>
-                  </div>
-                  <div className="border border-gray-200 rounded-lg p-6 bg-purple-50">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                      <div className="w-3 h-3 bg-purple-500 rounded-full mr-3"></div>
-                      Significance
-                    </h3>
-                    <p className="text-gray-700">{analysis.quality_teaching.significance || 'No analysis available'}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Visible Thinking Tab */}
-            {activeTab === 'thinking' && analysis.visible_thinking && (
-              <div className="space-y-6">
-                <div className="flex items-center space-x-3 mb-6">
-                  <Brain className="w-8 h-8 text-purple-600" />
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Visible Thinking Routines Analysis</h2>
-                    <p className="text-gray-600">Harvard Project Zero thinking strategies</p>
-                  </div>
-                </div>
-                
-                <div className="grid gap-6">
-                  <div className="border border-gray-200 rounded-lg p-6 bg-purple-50">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Routines Identified</h3>
-                    {analysis.visible_thinking.routines_identified?.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {analysis.visible_thinking.routines_identified.map((routine, index) => (
-                          <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800 border border-purple-200">
-                            {routine}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-gray-500">No specific routines identified</p>
-                    )}
-                  </div>
-                  <div className="border border-gray-200 rounded-lg p-6 bg-white">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Implementation Strategies</h3>
-                    <p className="text-gray-700">{analysis.visible_thinking.implementation_strategies || 'No implementation strategies provided'}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Pembroke Pedagogies Tab */}
-            {activeTab === 'pembroke' && analysis.pembroke_pedagogies && (
-              <div className="space-y-6">
-                <div className="flex items-center space-x-3 mb-6">
-                  <School className="w-8 h-8 text-indigo-600" />
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Pembroke Effective Pedagogies Analysis</h2>
-                    <p className="text-gray-600">School-specific pedagogical approaches</p>
-                  </div>
-                </div>
-                
-                <div className="grid gap-6">
-                  <div className="border border-gray-200 rounded-lg p-6 bg-indigo-50">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Alignment Assessment</h3>
-                    <p className="text-gray-700">{analysis.pembroke_pedagogies.alignment || 'No alignment analysis available'}</p>
-                  </div>
-                  <div className="border border-gray-200 rounded-lg p-6 bg-white">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Integration Opportunities</h3>
-                    <p className="text-gray-700">{analysis.pembroke_pedagogies.integration_opportunities || 'No integration opportunities identified'}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Modern Classrooms Tab */}
-            {activeTab === 'modern' && analysis.modern_classrooms && (
-              <div className="space-y-6">
-                <div className="flex items-center space-x-3 mb-6">
-                  <Lightbulb className="w-8 h-8 text-orange-600" />
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Modern Classrooms Project Analysis</h2>
-                    <p className="text-gray-600">Self-paced, mastery-based learning approaches</p>
-                  </div>
-                </div>
-                
-                <div className="grid gap-6">
-                  <div className="border border-gray-200 rounded-lg p-6 bg-orange-50">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Alignment Assessment</h3>
-                    <p className="text-gray-700">{analysis.modern_classrooms.alignment || 'No alignment analysis available'}</p>
-                  </div>
-                  <div className="border border-gray-200 rounded-lg p-6 bg-white">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Integration Opportunities</h3>
-                    <p className="text-gray-700">{analysis.modern_classrooms.integration_opportunities || 'No integration opportunities identified'}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Key Insights Tab */}
-            {activeTab === 'insights' && (
-              <div className="space-y-6">
-                <div className="flex items-center space-x-3 mb-6">
-                  <TrendingUp className="w-8 h-8 text-blue-600" />
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Key Insights & Recommendations</h2>
-                    <p className="text-gray-600">Actionable takeaways from your professional learning</p>
-                  </div>
-                </div>
-                
-                <div className="grid gap-6 md:grid-cols-2">
-                  <div className="border border-gray-200 rounded-lg p-6 bg-blue-50">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center mr-3">
-                        <TrendingUp className="w-3 h-3 text-white" />
-                      </div>
-                      Key Insights
-                    </h3>
-                    {analysis.key_insights?.length > 0 ? (
-                      <ul className="space-y-3">
-                        {analysis.key_insights.map((insight, index) => (
-                          <li key={index} className="flex items-start">
-                            <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                              <span className="text-white text-xs font-bold">{index + 1}</span>
-                            </div>
-                            <span className="text-gray-700">{insight}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-gray-500">No key insights available</p>
-                    )}
-                  </div>
-                  
-                  <div className="border border-gray-200 rounded-lg p-6 bg-green-50">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center mr-3">
-                        <CheckCircle className="w-3 h-3 text-white" />
-                      </div>
-                      Recommendations
-                    </h3>
-                    {analysis.recommendations?.length > 0 ? (
-                      <ul className="space-y-3">
-                        {analysis.recommendations.map((recommendation, index) => (
-                          <li key={index} className="flex items-start">
-                            <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
-                              <span className="text-white text-xs font-bold">{index + 1}</span>
-                            </div>
-                            <span className="text-gray-700">{recommendation}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-gray-500">No recommendations available</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
+            </div>
           </div>
         </div>
 
-        {/* Next Steps Section */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mt-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">🎯 Your Professional Development Journey</h2>
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
-              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white font-bold text-lg">1</span>
+        {/* Tab Content */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 animate-slide-up" style={{animationDelay: '0.4s'}}>
+          {/* Overview Tab */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Executive Summary</h2>
+              
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="bg-purple-100 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-purple-900 mb-3">Frameworks Analyzed</h3>
+                  <div className="space-y-2">
+                    {availableTabs.filter(tab => tab.id !== 'overview' && tab.id !== 'insights').map((tab) => (
+                      <div key={tab.id} className="flex items-center text-purple-800">
+                        <CheckCircle className="w-4 h-4 mr-2 text-purple-600" />
+                        {tab.name}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="bg-green-100 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-green-900 mb-3">Learning Outcomes</h3>
+                  <div className="space-y-2 text-green-800">
+                    <div>✓ Professional standards aligned</div>
+                    <div>✓ Growth opportunities identified</div>
+                    <div>✓ Implementation strategies provided</div>
+                    <div>✓ Next steps recommended</div>
+                  </div>
+                </div>
               </div>
-              <h3 className="font-semibold text-gray-900 mb-3">Implement Strategies</h3>
-              <p className="text-gray-700 text-sm">Apply the specific strategies and techniques learned in your classroom practice</p>
             </div>
-            <div className="text-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200">
-              <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white font-bold text-lg">2</span>
+          )}
+
+          {/* AITSL Standards Tab */}
+          {activeTab === 'aitsl' && analysis.aitsl_analysis && (
+            <div className="space-y-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <Target className="w-8 h-8 text-blue-600" />
+                <h2 className="text-2xl font-bold text-gray-900">AITSL Standards Analysis</h2>
               </div>
-              <h3 className="font-semibold text-gray-900 mb-3">Document Outcomes</h3>
-              <p className="text-gray-700 text-sm">Keep track of implementation attempts and student learning outcomes</p>
-            </div>
-            <div className="text-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200">
-              <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white font-bold text-lg">3</span>
+              
+              {analysis.aitsl_analysis.overall_compliance && (
+                <div className="bg-green-100 rounded-xl p-6">
+                  <h3 className="font-semibold text-green-900 mb-2">Overall Assessment</h3>
+                  <p className="text-green-800">{analysis.aitsl_analysis.overall_compliance}</p>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                {analysis.aitsl_analysis.standards_addressed?.map((standard, index) => (
+                  <div key={index} className="bg-blue-50 rounded-xl p-6">
+                    <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center">
+                      <span className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">
+                        {index + 1}
+                      </span>
+                      {standard.standard}
+                    </h3>
+                    <div className="grid gap-3">
+                      <div className="bg-white p-4 rounded-lg">
+                        <h4 className="font-medium text-blue-800 mb-1">Evidence</h4>
+                        <p className="text-sm text-gray-700">{standard.evidence}</p>
+                      </div>
+                      <div className="bg-white p-4 rounded-lg">
+                        <h4 className="font-medium text-blue-800 mb-1">Growth Demonstrated</h4>
+                        <p className="text-sm text-gray-700">{standard.growth_demonstrated}</p>
+                      </div>
+                      <div className="bg-white p-4 rounded-lg">
+                        <h4 className="font-medium text-blue-800 mb-1">Implementation</h4>
+                        <p className="text-sm text-gray-700">{standard.implementation_opportunities}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <h3 className="font-semibold text-gray-900 mb-3">Share & Reflect</h3>
-              <p className="text-gray-700 text-sm">Share learnings with colleagues and reflect on your professional growth</p>
             </div>
-          </div>
+          )}
+
+          {/* Quality Teaching Tab */}
+          {activeTab === 'quality' && analysis.quality_teaching && (
+            <div className="space-y-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <BookOpen className="w-8 h-8 text-green-600" />
+                <h2 className="text-2xl font-bold text-gray-900">Quality Teaching Model</h2>
+              </div>
+              
+              <div className="grid gap-4">
+                <div className="bg-green-100 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-green-900 mb-3">Intellectual Quality</h3>
+                  <p className="text-gray-700">{analysis.quality_teaching.intellectual_quality}</p>
+                </div>
+                <div className="bg-teal-100 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-teal-900 mb-3">Learning Environment</h3>
+                  <p className="text-gray-700">{analysis.quality_teaching.learning_environment}</p>
+                </div>
+                <div className="bg-yellow-100 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-yellow-900 mb-3">Significance</h3>
+                  <p className="text-gray-700">{analysis.quality_teaching.significance}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Visible Thinking Tab */}
+          {activeTab === 'thinking' && analysis.visible_thinking && (
+            <div className="space-y-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <Brain className="w-8 h-8 text-purple-600" />
+                <h2 className="text-2xl font-bold text-gray-900">Visible Thinking Routines</h2>
+              </div>
+              
+              <div className="bg-purple-100 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-purple-900 mb-3">Routines Identified</h3>
+                {analysis.visible_thinking.routines_identified?.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {analysis.visible_thinking.routines_identified.map((routine, index) => (
+                      <span key={index} className="px-3 py-1 bg-purple-600 text-white rounded-full text-sm">
+                        {routine}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500">No routines identified</p>
+                )}
+              </div>
+              
+              <div className="bg-white border border-purple-200 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Implementation Strategies</h3>
+                <p className="text-gray-700">{analysis.visible_thinking.implementation_strategies}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Pembroke Tab */}
+          {activeTab === 'pembroke' && analysis.pembroke_pedagogies && (
+            <div className="space-y-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <School className="w-8 h-8 text-indigo-600" />
+                <h2 className="text-2xl font-bold text-gray-900">Pembroke Pedagogies</h2>
+              </div>
+              
+              <div className="bg-indigo-100 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-indigo-900 mb-3">Alignment</h3>
+                <p className="text-gray-700">{analysis.pembroke_pedagogies.alignment}</p>
+              </div>
+              
+              <div className="bg-white border border-indigo-200 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Integration Opportunities</h3>
+                <p className="text-gray-700">{analysis.pembroke_pedagogies.integration_opportunities}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Modern Classrooms Tab */}
+          {activeTab === 'modern' && analysis.modern_classrooms && (
+            <div className="space-y-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <Lightbulb className="w-8 h-8 text-yellow-600" />
+                <h2 className="text-2xl font-bold text-gray-900">Modern Classrooms</h2>
+              </div>
+              
+              <div className="bg-yellow-100 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-yellow-900 mb-3">Alignment</h3>
+                <p className="text-gray-700">{analysis.modern_classrooms.alignment}</p>
+              </div>
+              
+              <div className="bg-white border border-yellow-200 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Integration Opportunities</h3>
+                <p className="text-gray-700">{analysis.modern_classrooms.integration_opportunities}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Insights Tab */}
+          {activeTab === 'insights' && (
+            <div className="space-y-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <TrendingUp className="w-8 h-8 text-orange-600" />
+                <h2 className="text-2xl font-bold text-gray-900">Key Insights & Actions</h2>
+              </div>
+              
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="bg-orange-100 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-orange-900 mb-4 flex items-center">
+                    <Star className="w-5 h-5 mr-2" />
+                    Key Insights
+                  </h3>
+                  {analysis.key_insights?.length > 0 ? (
+                    <ul className="space-y-3">
+                      {analysis.key_insights.map((insight, index) => (
+                        <li key={index} className="flex items-start">
+                          <span className="w-6 h-6 bg-orange-600 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                            <span className="text-white text-xs font-bold">{index + 1}</span>
+                          </span>
+                          <span className="text-gray-700">{insight}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-500">No insights available</p>
+                  )}
+                </div>
+                
+                <div className="bg-green-100 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-green-900 mb-4 flex items-center">
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Recommended Actions
+                  </h3>
+                  {analysis.recommendations?.length > 0 ? (
+                    <ul className="space-y-3">
+                      {analysis.recommendations.map((rec, index) => (
+                        <li key={index} className="flex items-start">
+                          <span className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+                            <span className="text-white text-xs font-bold">{index + 1}</span>
+                          </span>
+                          <span className="text-gray-700">{rec}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-500">No recommendations available</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Next Steps */}
+        <div className="mt-8 text-center animate-slide-up" style={{animationDelay: '0.5s'}}>
+          <button
+            onClick={() => router.push('/')}
+            className="btn-primary inline-flex items-center"
+          >
+            <Home className="w-5 h-5 mr-3" />
+            Create Another Session
+          </button>
         </div>
       </div>
     </main>

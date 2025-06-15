@@ -19,6 +19,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (!general_notes || general_notes.trim() === '') {
+      return NextResponse.json(
+        { error: 'Notes are required' },
+        { status: 400 }
+      )
+    }
+
     // Validate selected frameworks
     if (!selected_frameworks || typeof selected_frameworks !== 'object') {
       return NextResponse.json(
@@ -37,6 +44,7 @@ export async function POST(request: NextRequest) {
 
     console.log('Processing notes submission for session:', session_id)
     console.log('Selected frameworks:', selected_frameworks)
+    console.log('Notes length:', general_notes.length)
 
     // Get session and agenda data
     const { data: sessionData, error: sessionError } = await supabase
@@ -56,16 +64,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Save notes to session (FIXED: removed updated_at)
+    // Save notes to session
     const { error: updateError } = await supabase
       .from('sessions')
       .update({
         notes: {
           general_notes,
-          responses,
+          responses: responses || {}, // Keep empty object for compatibility
           selected_frameworks
         }
-        // Removed updated_at since column doesn't exist
       })
       .eq('id', session_id)
 
@@ -77,11 +84,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate framework analysis based on selected frameworks
+    // Generate framework analysis with the single notes field
     const analysis = await generateFrameworkAnalysis(
       sessionData.agendas.content,
+      sessionData.agendas.form_structure?.focus_questions || [],
       general_notes,
-      responses,
       selected_frameworks
     )
 
@@ -122,26 +129,18 @@ export async function POST(request: NextRequest) {
 
 async function generateFrameworkAnalysis(
   agendaContent: string,
-  generalNotes: string,
-  responses: Record<string, string>,
+  focusQuestions: string[],
+  notes: string,
   selectedFrameworks: Record<string, boolean>
 ): Promise<any> {
   
-  // Combine all notes into one text for analysis
-  const allNotes = [
-    `General Notes: ${generalNotes}`,
-    ...Object.entries(responses).map(([questionId, response]) => 
-      `Response ${questionId}: ${response}`
-    )
-  ].join('\n\n')
-
   // Build framework-specific analysis prompts
   const frameworkPrompts = []
   
   if (selectedFrameworks.aitsl) {
     frameworkPrompts.push(`
     AITSL Standards Analysis:
-    Analyze against Australian Professional Standards for Teachers:
+    Analyze the notes against Australian Professional Standards for Teachers:
     1. Know students and how they learn
     2. Know the content and how to teach it
     3. Plan for and implement effective teaching and learning
@@ -150,46 +149,53 @@ async function generateFrameworkAnalysis(
     6. Engage in professional learning
     7. Engage professionally with colleagues, parents/carers and the community
     
-    For each relevant standard, provide:
-    - Evidence from the notes
-    - Growth demonstrated
-    - Implementation opportunities
+    For each relevant standard identified in the notes, provide:
+    - Standard name and number
+    - Specific evidence from the participant's notes
+    - Growth demonstrated through their reflections
+    - Implementation opportunities they've identified or that emerge from their notes
     `)
   }
 
   if (selectedFrameworks.qtm) {
     frameworkPrompts.push(`
     Quality Teaching Model Analysis:
-    Analyze against three dimensions:
-    1. Intellectual Quality (deep knowledge, problematic knowledge, higher-order thinking, metalanguage, substantive communication)
-    2. Quality Learning Environment (explicit quality criteria, engagement, high expectations, social support, students' self-regulation, student direction)
-    3. Significance (background knowledge, cultural knowledge, knowledge integration, inclusivity, connectedness, narrative)
+    Analyze the notes against the three dimensions:
+    1. Intellectual Quality: Look for evidence of deep knowledge, problematic knowledge, higher-order thinking, metalanguage, substantive communication
+    2. Quality Learning Environment: Look for explicit quality criteria, engagement strategies, high expectations, social support, self-regulation, student direction
+    3. Significance: Look for background knowledge, cultural knowledge, knowledge integration, inclusivity, connectedness, narrative approaches
+    
+    For each dimension, explain how the participant's reflections demonstrate understanding and application plans.
     `)
   }
 
   if (selectedFrameworks.visible_thinking) {
     frameworkPrompts.push(`
     Visible Thinking Routines Analysis:
-    Identify any thinking routines or strategies mentioned such as:
+    Identify any thinking routines or strategies that align with or could be enhanced by visible thinking approaches:
     - See-Think-Wonder
     - Think-Pair-Share
     - 3-2-1 Bridge
     - Chalk Talk
     - Compass Points
     - Connect-Extend-Challenge
-    Provide implementation strategies for classroom use.
+    - Other Project Zero routines
+    
+    Provide specific implementation strategies based on their notes and context.
     `)
   }
 
   if (selectedFrameworks.modern_classrooms) {
     frameworkPrompts.push(`
     Modern Classrooms Project Analysis:
-    Analyze alignment with:
-    - Self-paced learning
+    Analyze how the participant's notes align with:
+    - Self-paced learning structures
     - Mastery-based progression
-    - Choice and flexibility
-    - Blended learning approaches
+    - Student choice and flexibility
+    - Blended/hybrid learning approaches
     - Student agency and ownership
+    
+    Identify opportunities for integrating these approaches based on their reflections.
     `)
   }
 
@@ -202,55 +208,80 @@ async function generateFrameworkAnalysis(
     - Differentiated instruction
     - Student-centered approaches
     - Assessment for learning
+    - Technology integration
+    
+    Connect their reflections to Pembroke's teaching philosophy and practices.
     `)
   }
 
-  const systemPrompt = `You are an expert educational analyst. Analyze the following professional learning notes against the selected educational frameworks. 
+  const systemPrompt = `You are an expert educational analyst specializing in teacher professional development and framework alignment.
 
-  Context:
-  Session Agenda: ${agendaContent}
+  CONTEXT:
+  Professional Development Session: ${agendaContent}
   
-  Learning Notes: ${allNotes}
+  Focus Questions Provided:
+  ${focusQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
   
-  Analysis Requirements:
-  ${frameworkPrompts.join('\n')}
+  PARTICIPANT'S REFLECTION NOTES:
+  ${notes}
   
-  Provide your analysis in the following JSON structure, only including sections for selected frameworks:
+  ANALYSIS TASK:
+  Analyze these professional learning notes against the selected educational frameworks. The participant may have addressed the focus questions directly or indirectly in their reflection. Look for evidence of learning, implementation plans, challenges identified, and professional growth.
+  
+  ${frameworkPrompts.join('\n\n')}
+  
+  IMPORTANT GUIDELINES:
+  1. Base your analysis ONLY on what the participant actually wrote in their notes
+  2. Quote specific phrases or ideas from their notes as evidence
+  3. Be constructive and growth-oriented in your analysis
+  4. Identify both strengths and areas for development
+  5. Make connections between their reflections and the frameworks
+  6. Provide practical, actionable recommendations
+  
+  Provide your analysis in the following JSON structure:
   
   {
     ${selectedFrameworks.aitsl ? `"aitsl_analysis": {
       "standards_addressed": [
         {
-          "standard": "Standard name",
-          "evidence": "Specific evidence from notes",
-          "growth_demonstrated": "How growth is shown",
-          "implementation_opportunities": "Future implementation ideas"
+          "standard": "Standard name and number",
+          "evidence": "Direct quotes or specific references from their notes",
+          "growth_demonstrated": "How their reflection shows professional growth",
+          "implementation_opportunities": "Practical next steps based on their context"
         }
       ],
-      "overall_compliance": "Overall assessment"
+      "overall_compliance": "Summary of how their learning aligns with AITSL standards"
     },` : ''}
     ${selectedFrameworks.qtm ? `"quality_teaching": {
-      "intellectual_quality": "Analysis of intellectual quality dimension",
-      "learning_environment": "Analysis of learning environment dimension", 
-      "significance": "Analysis of significance dimension"
+      "intellectual_quality": "Analysis based on their notes",
+      "learning_environment": "Analysis based on their notes", 
+      "significance": "Analysis based on their notes"
     },` : ''}
     ${selectedFrameworks.visible_thinking ? `"visible_thinking": {
-      "routines_identified": ["List of routines mentioned or applicable"],
-      "implementation_strategies": "How to implement in classroom"
+      "routines_identified": ["Specific routines that align with their plans"],
+      "implementation_strategies": "How they can implement based on their reflections"
     },` : ''}
     ${selectedFrameworks.modern_classrooms ? `"modern_classrooms": {
-      "alignment": "How learning aligns with modern classrooms principles",
-      "integration_opportunities": "Ways to integrate these approaches"
+      "alignment": "How their learning aligns with modern classrooms principles",
+      "integration_opportunities": "Specific ways to integrate based on their notes"
     },` : ''}
     ${selectedFrameworks.pembroke ? `"pembroke_pedagogies": {
-      "alignment": "Alignment with Pembroke pedagogical approaches",
-      "integration_opportunities": "Integration opportunities"
+      "alignment": "Connection to Pembroke's pedagogical approaches",
+      "integration_opportunities": "School-specific implementation ideas"
     },` : ''}
-    "key_insights": ["Key insight 1", "Key insight 2", "Key insight 3"],
-    "recommendations": ["Recommendation 1", "Recommendation 2", "Recommendation 3"]
+    "key_insights": [
+      "3-5 key insights drawn from their reflection",
+      "Focus on their main learning points",
+      "Highlight implementation intentions"
+    ],
+    "recommendations": [
+      "3-5 specific, actionable recommendations",
+      "Based on their identified challenges and goals",
+      "Practical next steps for their classroom"
+    ]
   }
   
-  Ensure all text is substantive and specific to the learning content provided.`
+  Ensure all analysis is directly tied to the participant's actual notes and reflections.`
 
   try {
     const completion = await openai.chat.completions.create({
@@ -262,7 +293,7 @@ async function generateFrameworkAnalysis(
         }
       ],
       temperature: 0.7,
-      max_tokens: 2500  // Increased for longer responses
+      max_tokens: 3000
     })
 
     const analysisText = completion.choices[0].message.content
@@ -270,15 +301,14 @@ async function generateFrameworkAnalysis(
       throw new Error('No analysis generated')
     }
 
-    // Clean up the response to remove markdown formatting
+    // Clean up the response
     const cleanedText = analysisText
-      .replace(/```json\s*/g, '')  // Remove ```json
-      .replace(/```\s*/g, '')      // Remove closing ```
+      .replace(/```json\s*/g, '')
+      .replace(/```\s*/g, '')
       .trim()
 
     console.log('Analysis generated successfully')
 
-    // Parse the JSON response
     const analysis = JSON.parse(cleanedText)
     return analysis
 
@@ -287,15 +317,23 @@ async function generateFrameworkAnalysis(
     
     // Return a fallback analysis structure
     const fallbackAnalysis: any = {
-      key_insights: ["Analysis could not be completed at this time"],
-      recommendations: ["Please try regenerating the report"]
+      key_insights: [
+        "Professional learning session completed",
+        "Reflection notes captured",
+        "Framework analysis in progress"
+      ],
+      recommendations: [
+        "Review the generated report for detailed analysis",
+        "Identify key strategies to implement",
+        "Plan follow-up professional learning"
+      ]
     }
 
     // Add empty structures for selected frameworks
     if (selectedFrameworks.aitsl) {
       fallbackAnalysis.aitsl_analysis = {
         standards_addressed: [],
-        overall_compliance: "Analysis pending"
+        overall_compliance: "Analysis could not be completed"
       }
     }
     
